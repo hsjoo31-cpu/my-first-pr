@@ -32,6 +32,28 @@ header h1 {
 }
 .subtitle { color: var(--text-dim); font-size: 14px; }
 
+.month-selector {
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.month-selector label {
+  font-size: 13px;
+  color: var(--text-dim);
+}
+.month-selector select {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 14px;
+  font-family: inherit;
+  cursor: pointer;
+}
+.month-selector select:focus { outline: 2px solid var(--accent); }
+
 .meta {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));

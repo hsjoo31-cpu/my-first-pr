@@ -1,8 +1,9 @@
 {
   "updated_at": "2026-05-29T00:00:00+09:00",
+  "target_month": "2026-04",
   "period": {
-    "start": "2026-04-29",
-    "end": "2026-05-29"
+    "start": "2026-04-01",
+    "end": "2026-04-30"
   },
   "criteria": {
     "market_cap_min_eok": 3000,

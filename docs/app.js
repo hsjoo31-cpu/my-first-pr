@@ -1,16 +1,58 @@
+let HISTORY = [];
+let CURRENT = null;
+
 async function load() {
   const tbody = document.getElementById("results-body");
   try {
-    const res = await fetch("data/results.json?ts=" + Date.now());
-    if (!res.ok) throw new Error("HTTP " + res.status);
-    const data = await res.json();
-    render(data);
+    // 히스토리 우선 시도
+    let history = [];
+    try {
+      const hres = await fetch("data/history.json?ts=" + Date.now());
+      if (hres.ok) history = await hres.json();
+    } catch (_) {}
+
+    if (history.length > 0) {
+      HISTORY = history;
+      buildMonthSelector(history);
+      renderMonth(history[0].target_month);
+    } else {
+      // fallback: 현재 결과만
+      const res = await fetch("data/results.json?ts=" + Date.now());
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const data = await res.json();
+      CURRENT = data;
+      buildMonthSelector([{
+        target_month: data.target_month || "current",
+        ...data,
+      }]);
+      renderEntry(data);
+    }
   } catch (e) {
     tbody.innerHTML = `<tr><td colspan="8" class="empty">데이터를 불러올 수 없습니다: ${e.message}</td></tr>`;
   }
 }
 
+function buildMonthSelector(history) {
+  const sel = document.getElementById("month-select");
+  sel.innerHTML = history.map(h =>
+    `<option value="${h.target_month}">${formatMonthLabel(h.target_month)}</option>`
+  ).join("");
+  sel.addEventListener("change", e => renderMonth(e.target.value));
+}
+
+function formatMonthLabel(ym) {
+  if (!ym || !ym.includes("-")) return ym || "—";
+  const [y, m] = ym.split("-");
+  return `${y}년 ${parseInt(m, 10)}월`;
+}
+
+function renderMonth(target_month) {
+  const entry = HISTORY.find(h => h.target_month === target_month);
+  if (entry) renderEntry(entry);
+}
+
 function fmtDate(iso) {
+  if (!iso) return "—";
   const d = new Date(iso);
   return d.toLocaleString("ko-KR", {
     timeZone: "Asia/Seoul",
@@ -23,22 +65,24 @@ function fmtNum(n) {
   return new Intl.NumberFormat("ko-KR").format(n);
 }
 
-function render(data) {
+function renderEntry(data) {
+  document.getElementById("target-month").textContent =
+    formatMonthLabel(data.target_month);
+  document.getElementById("period").textContent = data.period
+    ? `${data.period.start} → ${data.period.end}`
+    : "—";
   document.getElementById("updated-at").textContent = fmtDate(data.updated_at);
-  document.getElementById("period").textContent =
-    `${data.period.start} → ${data.period.end}`;
-  document.getElementById("universe-size").textContent =
-    fmtNum(data.universe_size) + "개";
   document.getElementById("passed-count").textContent =
-    fmtNum(data.passed_count) + "개";
+    fmtNum(data.passed_count || 0) + "개";
 
   const tbody = document.getElementById("results-body");
-  if (!data.stocks || data.stocks.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="8" class="empty">조건 통과 종목이 없습니다.</td></tr>`;
+  const stocks = data.stocks || [];
+  if (stocks.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="8" class="empty">해당 월에 통과한 종목이 없습니다.</td></tr>`;
     return;
   }
 
-  tbody.innerHTML = data.stocks.map(s => {
+  tbody.innerHTML = stocks.map(s => {
     const retClass = s.return_pct >= 0 ? "positive" : "negative";
     const retSign = s.return_pct >= 0 ? "+" : "";
     return `

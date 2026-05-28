@@ -28,10 +28,10 @@ MARKET_CAP_MIN = 300_000_000_000
 TOP_N = 100
 REPORT_MIN = 2
 REPORT_WINDOW_DAYS = 91
-LOOKBACK_DAYS = 30  # 1개월
 YF_BATCH = 100
 NAVER_DELAY = 0.15
 OUTPUT_PATH = os.path.join("docs", "data", "results.json")
+HISTORY_PATH = os.path.join("docs", "data", "history.json")
 
 HEADERS = {
     "User-Agent": (
@@ -103,14 +103,21 @@ def main():
     universe["yf_ticker"] = universe["Code"] + universe["MarketId"].apply(yf_suffix)
     print(f"  → {len(universe)}개", flush=True)
 
-    # [2] 1개월 수익률
-    print("[2/4] 1개월 수익률 계산...", flush=True)
-    end_target = now
-    start_target = end_target - timedelta(days=LOOKBACK_DAYS + 14)
+    # [2] 직전 캘린더 월의 수익률
+    print("[2/4] 직전 월 수익률 계산...", flush=True)
+    # 이번 달 1일 → 직전 월의 첫째 날과 마지막 날 계산
+    this_month_first = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    prev_month_last = this_month_first - timedelta(days=1)
+    prev_month_first = prev_month_last.replace(day=1)
+    target_month_str = prev_month_first.strftime("%Y-%m")
+
+    # 가격 데이터: 직전 월의 첫 거래일과 마지막 거래일이 필요
+    # 여유있게 직전 월 시작 -3일 ~ 이번 달 시작 까지 받음
+    fetch_start = (prev_month_first - timedelta(days=5)).strftime("%Y-%m-%d")
+    fetch_end = this_month_first.strftime("%Y-%m-%d")
+
     prices = fetch_close_panel(
-        universe["yf_ticker"].tolist(),
-        start_target.strftime("%Y-%m-%d"),
-        (end_target + timedelta(days=1)).strftime("%Y-%m-%d"),
+        universe["yf_ticker"].tolist(), fetch_start, fetch_end,
     )
     prices.columns = [c.split(".")[0] for c in prices.columns]
     prices = prices.dropna(how="all").ffill(limit=5)
@@ -118,15 +125,21 @@ def main():
     if prices.empty:
         raise RuntimeError("가격 데이터 없음")
 
-    latest_dt = prices.index[-1]
-    target_start = latest_dt - timedelta(days=LOOKBACK_DAYS)
-    start_idx = prices.index.searchsorted(target_start)
-    start_dt = prices.index[start_idx]
-    report_cutoff = latest_dt - timedelta(days=REPORT_WINDOW_DAYS)
+    # 직전 월에 속한 거래일만 추림
+    month_mask = (prices.index >= prev_month_first.replace(tzinfo=None)) & \
+                 (prices.index < this_month_first.replace(tzinfo=None))
+    prices_month = prices.loc[month_mask]
+    if prices_month.empty:
+        raise RuntimeError(f"{target_month_str} 거래일 데이터 없음")
 
-    print(f"  → 기간: {start_dt.date()} ~ {latest_dt.date()}", flush=True)
+    start_dt = prices_month.index[0]   # 직전 월의 첫 거래일
+    end_dt = prices_month.index[-1]    # 직전 월의 마지막 거래일
+    report_cutoff = end_dt - timedelta(days=REPORT_WINDOW_DAYS)
 
-    returns = (prices.loc[latest_dt] / prices.loc[start_dt] - 1) * 100
+    print(f"  → 측정 월: {target_month_str}", flush=True)
+    print(f"  → 거래일 범위: {start_dt.date()} ~ {end_dt.date()}", flush=True)
+
+    returns = (prices_month.loc[end_dt] / prices_month.loc[start_dt] - 1) * 100
     returns = returns.dropna()
 
     df = (
@@ -161,9 +174,10 @@ def main():
     print("[4/4] 결과 저장...", flush=True)
     result = {
         "updated_at": now.isoformat(),
+        "target_month": target_month_str,
         "period": {
             "start": start_dt.strftime("%Y-%m-%d"),
-            "end": latest_dt.strftime("%Y-%m-%d"),
+            "end": end_dt.strftime("%Y-%m-%d"),
         },
         "criteria": {
             "market_cap_min_eok": MARKET_CAP_MIN // 100_000_000,
@@ -179,6 +193,28 @@ def main():
     with open(OUTPUT_PATH, "w", encoding="utf-8") as f:
         json.dump(result, f, ensure_ascii=False, indent=2)
     print(f"저장 완료 → {OUTPUT_PATH}", flush=True)
+
+    # 히스토리 누적 (월별 결과)
+    history = []
+    if os.path.exists(HISTORY_PATH):
+        try:
+            with open(HISTORY_PATH, "r", encoding="utf-8") as f:
+                history = json.load(f)
+        except Exception:
+            history = []
+    # 같은 달이 있으면 교체
+    history = [h for h in history if h.get("target_month") != target_month_str]
+    history.append({
+        "target_month": target_month_str,
+        "updated_at": now.isoformat(),
+        "period": result["period"],
+        "passed_count": len(passed),
+        "stocks": passed,
+    })
+    history.sort(key=lambda h: h["target_month"], reverse=True)
+    with open(HISTORY_PATH, "w", encoding="utf-8") as f:
+        json.dump(history, f, ensure_ascii=False, indent=2)
+    print(f"히스토리 누적 → {HISTORY_PATH} ({len(history)}개월)", flush=True)
 
 
 if __name__ == "__main__":
