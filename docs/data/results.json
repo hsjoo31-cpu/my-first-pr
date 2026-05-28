@@ -1,0 +1,16 @@
+{
+  "updated_at": "2026-05-29T00:00:00+09:00",
+  "period": {
+    "start": "2026-04-29",
+    "end": "2026-05-29"
+  },
+  "criteria": {
+    "market_cap_min_eok": 3000,
+    "top_n_candidates": 100,
+    "report_window_days": 91,
+    "report_min": 2
+  },
+  "universe_size": 0,
+  "passed_count": 0,
+  "stocks": []
+}

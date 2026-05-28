@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KR 모멘텀 스크리너</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <h1>국내 주식 모멘텀 스크리너</h1>
+    <p class="subtitle">
+      KOSPI · KOSDAQ · 시총 3000억 이상 · 1개월 수익률 상위 · 애널리스트 리포트 검증
+    </p>
+  </header>
+
+  <section class="meta">
+    <div class="meta-card">
+      <span class="label">최근 업데이트</span>
+      <span class="value" id="updated-at">—</span>
+    </div>
+    <div class="meta-card">
+      <span class="label">측정 구간</span>
+      <span class="value" id="period">—</span>
+    </div>
+    <div class="meta-card">
+      <span class="label">전체 유니버스</span>
+      <span class="value" id="universe-size">—</span>
+    </div>
+    <div class="meta-card">
+      <span class="label">조건 통과</span>
+      <span class="value highlight" id="passed-count">—</span>
+    </div>
+  </section>
+
+  <section class="criteria">
+    <h2>스크리닝 기준</h2>
+    <ol>
+      <li>KOSPI + KOSDAQ 전 종목 시가총액 <strong>3000억 이상</strong></li>
+      <li>직전 <strong>1개월 주가상승률 상위 100위</strong></li>
+      <li>네이버 금융 애널리스트 리포트 <strong>3개월 내 2건 이상</strong></li>
+    </ol>
+    <p class="schedule">매월 첫 거래일 자동 업데이트</p>
+  </section>
+
+  <section class="results">
+    <h2>스크리닝 결과</h2>
+    <div class="table-wrap">
+      <table id="results-table">
+        <thead>
+          <tr>
+            <th>순위</th>
+            <th>종목명</th>
+            <th>티커</th>
+            <th>시장</th>
+            <th class="num">수익률</th>
+            <th class="num">시가총액 (억)</th>
+            <th class="num">리포트 (3M)</th>
+            <th>외부 링크</th>
+          </tr>
+        </thead>
+        <tbody id="results-body">
+          <tr><td colspan="8" class="empty">데이터 로딩 중...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer>
+    <p>
+      투자 자문이 아니며, 데이터 정확성을 보장하지 않습니다.
+      소스: <a href="https://finance.naver.com/" target="_blank" rel="noopener">네이버 금융</a>,
+      <a href="https://finance.yahoo.com/" target="_blank" rel="noopener">Yahoo Finance</a>
+    </p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

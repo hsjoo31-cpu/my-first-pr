@@ -2,4 +2,7 @@
 __pycache__/
 *.pyc
 *.log
+*.parquet
 momentum_screener.csv
+backtest_equity.csv
+backtest_summary.csv
