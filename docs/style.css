@@ -135,6 +135,47 @@ header h1 {
   color: var(--text-dim);
 }
 
+.dashboard {
+  margin-bottom: 28px;
+}
+.dashboard h2 {
+  font-size: 14px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 6px;
+}
+.dashboard-note {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-bottom: 12px;
+  line-height: 1.5;
+}
+.chart-metric {
+  text-transform: none;
+  font-size: 12px;
+  color: var(--text-dim);
+  letter-spacing: 0;
+  margin-left: 6px;
+  font-weight: 400;
+}
+.chart-wrap {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 12px;
+  height: 320px;
+  position: relative;
+}
+@media (max-width: 640px) {
+  .chart-wrap { height: 260px; padding: 10px; }
+}
+table.compact th, table.compact td {
+  padding: 8px 12px;
+  font-size: 13px;
+}
+
 .results h2 {
   font-size: 14px;
   color: var(--text-dim);
