@@ -6,3 +6,4 @@ __pycache__/
 momentum_screener.csv
 backtest_equity.csv
 backtest_summary.csv
+backfill_reports.json
