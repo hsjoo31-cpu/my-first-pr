@@ -1,0 +1,5 @@
+finance-datareader
+yfinance
+requests
+beautifulsoup4
+pandas
