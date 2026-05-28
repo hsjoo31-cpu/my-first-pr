@@ -42,6 +42,10 @@
     <h2>다음 달 매수 시 평균 수익률 <span class="fwd-month" id="fwd-month-label"></span></h2>
     <div class="forward-cards">
       <div class="meta-card forward-card">
+        <span class="label">상위 5 종목 평균</span>
+        <span class="value" id="fwd-top5">—</span>
+      </div>
+      <div class="meta-card forward-card">
         <span class="label">상위 10 종목 평균</span>
         <span class="value" id="fwd-top10">—</span>
       </div>
@@ -77,6 +81,8 @@
           <tr>
             <th>연도</th>
             <th class="num">월수</th>
+            <th class="num">Top5 월평균</th>
+            <th class="num">Top5 합산</th>
             <th class="num">Top10 월평균</th>
             <th class="num">Top10 합산</th>
             <th class="num">Top20 월평균</th>
@@ -84,7 +90,7 @@
           </tr>
         </thead>
         <tbody id="year-table-body">
-          <tr><td colspan="6" class="empty">집계 중...</td></tr>
+          <tr><td colspan="8" class="empty">집계 중...</td></tr>
         </tbody>
       </table>
     </div>
@@ -103,6 +109,8 @@
           <tr>
             <th>월</th>
             <th class="num">표본수</th>
+            <th class="num">Top5 평균</th>
+            <th class="num">Top5 합산</th>
             <th class="num">Top10 평균</th>
             <th class="num">Top10 합산</th>
             <th class="num">Top20 평균</th>
@@ -110,7 +118,7 @@
           </tr>
         </thead>
         <tbody id="month-table-body">
-          <tr><td colspan="6" class="empty">집계 중...</td></tr>
+          <tr><td colspan="8" class="empty">집계 중...</td></tr>
         </tbody>
       </table>
     </div>
@@ -148,6 +156,7 @@
   </footer>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
