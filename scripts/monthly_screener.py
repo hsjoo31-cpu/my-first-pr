@@ -207,6 +207,47 @@ def main():
                 history = json.load(f)
         except Exception:
             history = []
+
+    # 직전 월 항목에 "다음 달 평균 수익률" 백필
+    # 현재 run의 start_dt(직전 월말) → end_dt(측정 월말)이므로
+    # 정확히 직전 항목의 forward return을 채울 수 있다
+    backfill_target = (prev_month_first - timedelta(days=1)).replace(day=1).strftime("%Y-%m")
+    for h in history:
+        if h.get("target_month") != backfill_target:
+            continue
+        rets10, rets20 = [], []
+        for idx, s in enumerate(h.get("stocks", [])[:20]):
+            ticker = s.get("ticker")
+            if ticker not in prices.columns:
+                continue
+            try:
+                px_a = prices.at[start_dt, ticker]
+                px_b = prices.at[end_dt, ticker]
+            except KeyError:
+                continue
+            if pd.isna(px_a) or pd.isna(px_b) or px_a <= 0:
+                continue
+            r = (px_b / px_a - 1) * 100
+            if idx < 10:
+                rets10.append(r)
+            rets20.append(r)
+        if rets10 or rets20:
+            h["forward_returns"] = {
+                "next_month": target_month_str,
+                "next_period": {
+                    "start": start_dt.strftime("%Y-%m-%d"),
+                    "end": end_dt.strftime("%Y-%m-%d"),
+                },
+                "top10_avg_pct": round(sum(rets10) / len(rets10), 2) if rets10 else None,
+                "top20_avg_pct": round(sum(rets20) / len(rets20), 2) if rets20 else None,
+                "top10_n": len(rets10),
+                "top20_n": len(rets20),
+            }
+            print(f"  → {backfill_target} forward returns 백필: "
+                  f"top10={h['forward_returns']['top10_avg_pct']}% / "
+                  f"top20={h['forward_returns']['top20_avg_pct']}%", flush=True)
+        break
+
     history = [h for h in history if h.get("target_month") != target_month_str]
     history.append({
         "target_month": target_month_str,

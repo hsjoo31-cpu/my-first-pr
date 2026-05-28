@@ -60,6 +60,14 @@ function fmtNum(n) {
   return new Intl.NumberFormat("ko-KR").format(n);
 }
 
+function formatReturn(pct, n) {
+  if (pct === null || pct === undefined) return "—";
+  const cls = pct >= 0 ? "positive" : "negative";
+  const sign = pct >= 0 ? "+" : "";
+  return `<span class="${cls}">${sign}${pct.toFixed(2)}%</span>` +
+         `<small class="value-sub">${n}개 평균</small>`;
+}
+
 function renderEntry(data) {
   document.getElementById("target-month").textContent =
     formatMonthLabel(data.target_month);
@@ -69,6 +77,21 @@ function renderEntry(data) {
   document.getElementById("updated-at").textContent = fmtDate(data.updated_at);
   document.getElementById("passed-count").textContent =
     fmtNum(data.passed_count || 0) + "개";
+
+  // 다음 달 평균 수익률
+  const fwdSection = document.getElementById("forward-section");
+  const fr = data.forward_returns;
+  if (fr && (fr.top10_avg_pct !== null || fr.top20_avg_pct !== null)) {
+    fwdSection.hidden = false;
+    document.getElementById("fwd-month-label").textContent =
+      `(${formatMonthLabel(fr.next_month)})`;
+    document.getElementById("fwd-top10").innerHTML =
+      formatReturn(fr.top10_avg_pct, fr.top10_n);
+    document.getElementById("fwd-top20").innerHTML =
+      formatReturn(fr.top20_avg_pct, fr.top20_n);
+  } else {
+    fwdSection.hidden = true;
+  }
 
   const tbody = document.getElementById("results-body");
   const stocks = data.stocks || [];
