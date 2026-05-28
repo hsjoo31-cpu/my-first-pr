@@ -221,7 +221,7 @@ def main():
     for h in history:
         if h.get("target_month") != backfill_target:
             continue
-        rets10, rets20 = [], []
+        rets5, rets10, rets20 = [], [], []
         for idx, s in enumerate(h.get("stocks", [])[:20]):
             ticker = s.get("ticker")
             if ticker not in prices.columns:
@@ -234,22 +234,27 @@ def main():
             if pd.isna(px_a) or pd.isna(px_b) or px_a <= 0:
                 continue
             r = (px_b / px_a - 1) * 100
+            if idx < 5:
+                rets5.append(r)
             if idx < 10:
                 rets10.append(r)
             rets20.append(r)
-        if rets10 or rets20:
+        if rets5 or rets10 or rets20:
             h["forward_returns"] = {
                 "next_month": target_month_str,
                 "next_period": {
                     "start": start_dt.strftime("%Y-%m-%d"),
                     "end": end_dt.strftime("%Y-%m-%d"),
                 },
+                "top5_avg_pct": round(sum(rets5) / len(rets5), 2) if rets5 else None,
                 "top10_avg_pct": round(sum(rets10) / len(rets10), 2) if rets10 else None,
                 "top20_avg_pct": round(sum(rets20) / len(rets20), 2) if rets20 else None,
+                "top5_n": len(rets5),
                 "top10_n": len(rets10),
                 "top20_n": len(rets20),
             }
             print(f"  → {backfill_target} forward returns 백필: "
+                  f"top5={h['forward_returns']['top5_avg_pct']}% / "
                   f"top10={h['forward_returns']['top10_avg_pct']}% / "
                   f"top20={h['forward_returns']['top20_avg_pct']}%", flush=True)
         break

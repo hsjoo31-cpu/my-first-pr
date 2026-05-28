@@ -261,14 +261,14 @@ def main():
             "stocks": passed,
         })
 
-    # forward returns: 각 월의 top10/top20을 다음 월말까지 보유 시 평균
+    # forward returns: 각 월의 top5/top10/top20을 다음 월말까지 보유 시 평균
     for i in range(len(new_history) - 1):
         curr = new_history[i]
         if i + 1 >= len(monthly_data):
             continue
         curr_end = monthly_data[i]["end_dt"]
         next_end = monthly_data[i + 1]["end_dt"]
-        rets10, rets20 = [], []
+        rets5, rets10, rets20 = [], [], []
         for idx, s in enumerate(curr.get("stocks", [])[:20]):
             t = s["ticker"]
             if t not in prices.columns:
@@ -281,15 +281,19 @@ def main():
             if pd.isna(px_a) or pd.isna(px_b) or px_a <= 0:
                 continue
             r = (px_b / px_a - 1) * 100
+            if idx < 5:
+                rets5.append(r)
             if idx < 10:
                 rets10.append(r)
             rets20.append(r)
-        if rets10 or rets20:
+        if rets5 or rets10 or rets20:
             curr["forward_returns"] = {
                 "next_month": new_history[i + 1]["target_month"],
                 "next_period": new_history[i + 1]["period"],
+                "top5_avg_pct": round(sum(rets5) / len(rets5), 2) if rets5 else None,
                 "top10_avg_pct": round(sum(rets10) / len(rets10), 2) if rets10 else None,
                 "top20_avg_pct": round(sum(rets20) / len(rets20), 2) if rets20 else None,
+                "top5_n": len(rets5),
                 "top10_n": len(rets10),
                 "top20_n": len(rets20),
             }

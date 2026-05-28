@@ -84,10 +84,12 @@ function renderEntry(data) {
   // 다음 달 평균 수익률
   const fwdSection = document.getElementById("forward-section");
   const fr = data.forward_returns;
-  if (fr && (fr.top10_avg_pct !== null || fr.top20_avg_pct !== null)) {
+  if (fr && (fr.top5_avg_pct !== null || fr.top10_avg_pct !== null || fr.top20_avg_pct !== null)) {
     fwdSection.hidden = false;
     document.getElementById("fwd-month-label").textContent =
       `(${formatMonthLabel(fr.next_month)})`;
+    document.getElementById("fwd-top5").innerHTML =
+      formatReturn(fr.top5_avg_pct, fr.top5_n);
     document.getElementById("fwd-top10").innerHTML =
       formatReturn(fr.top10_avg_pct, fr.top10_n);
     document.getElementById("fwd-top20").innerHTML =
@@ -133,16 +135,15 @@ function buildDashboard(history) {
     if (!fr || !fr.next_month) continue;
     const [year, month] = fr.next_month.split("-");
 
-    if (!byYear[year]) byYear[year] = { top10: [], top20: [] };
-    if (!byMonth[month]) byMonth[month] = { top10: [], top20: [] };
+    if (!byYear[year]) byYear[year] = { top5: [], top10: [], top20: [] };
+    if (!byMonth[month]) byMonth[month] = { top5: [], top10: [], top20: [] };
 
-    if (fr.top10_avg_pct !== null && fr.top10_avg_pct !== undefined) {
-      byYear[year].top10.push(fr.top10_avg_pct);
-      byMonth[month].top10.push(fr.top10_avg_pct);
-    }
-    if (fr.top20_avg_pct !== null && fr.top20_avg_pct !== undefined) {
-      byYear[year].top20.push(fr.top20_avg_pct);
-      byMonth[month].top20.push(fr.top20_avg_pct);
+    for (const k of ["top5", "top10", "top20"]) {
+      const v = fr[`${k}_avg_pct`];
+      if (v !== null && v !== undefined) {
+        byYear[year][k].push(v);
+        byMonth[month][k].push(v);
+      }
     }
   }
 
@@ -155,23 +156,21 @@ function buildDashboard(history) {
     return {
       label: `${y}년`,
       count: d.top10.length,
-      top10_mean: mean(d.top10),
-      top10_sum: sum(d.top10),
-      top20_mean: mean(d.top20),
-      top20_sum: sum(d.top20),
+      top5_mean: mean(d.top5), top5_sum: sum(d.top5),
+      top10_mean: mean(d.top10), top10_sum: sum(d.top10),
+      top20_mean: mean(d.top20), top20_sum: sum(d.top20),
     };
   });
 
   const allMonths = ["01","02","03","04","05","06","07","08","09","10","11","12"];
   const monthRows = allMonths.map(m => {
-    const d = byMonth[m] || { top10: [], top20: [] };
+    const d = byMonth[m] || { top5: [], top10: [], top20: [] };
     return {
       label: `${parseInt(m, 10)}월`,
       count: d.top10.length,
-      top10_mean: mean(d.top10),
-      top10_sum: sum(d.top10),
-      top20_mean: mean(d.top20),
-      top20_sum: sum(d.top20),
+      top5_mean: mean(d.top5), top5_sum: sum(d.top5),
+      top10_mean: mean(d.top10), top10_sum: sum(d.top10),
+      top20_mean: mean(d.top20), top20_sum: sum(d.top20),
     };
   });
 
@@ -182,18 +181,24 @@ function buildDashboard(history) {
   YEAR_CHART = renderBarChart(
     "year-chart", YEAR_CHART,
     yearRows.map(r => r.label),
-    yearRows.map(r => r.top10_sum),
-    yearRows.map(r => r.top20_sum),
+    {
+      top5: yearRows.map(r => r.top5_sum),
+      top10: yearRows.map(r => r.top10_sum),
+      top20: yearRows.map(r => r.top20_sum),
+    },
   );
   MONTH_CHART = renderBarChart(
     "month-chart", MONTH_CHART,
     monthRows.map(r => r.label),
-    monthRows.map(r => r.top10_mean),
-    monthRows.map(r => r.top20_mean),
+    {
+      top5: monthRows.map(r => r.top5_mean),
+      top10: monthRows.map(r => r.top10_mean),
+      top20: monthRows.map(r => r.top20_mean),
+    },
   );
 }
 
-function renderBarChart(canvasId, prev, labels, top10, top20) {
+function renderBarChart(canvasId, prev, labels, series) {
   if (typeof Chart === "undefined") return null;
   if (prev) prev.destroy();
   const ctx = document.getElementById(canvasId).getContext("2d");
@@ -202,32 +207,32 @@ function renderBarChart(canvasId, prev, labels, top10, top20) {
   Chart.defaults.borderColor = "#2a3142";
   Chart.defaults.font.family = "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Pretendard', sans-serif";
 
+  // datalabels 플러그인 등록 (1회)
+  if (window.ChartDataLabels && !Chart._dlRegistered) {
+    Chart.register(window.ChartDataLabels);
+    Chart._dlRegistered = true;
+  }
+
+  const datasets = [
+    { key: "top5",  label: "Top 5",  bg: "rgba(251,191,36,0.78)", bc: "#d97706" },
+    { key: "top10", label: "Top 10", bg: "rgba(74,222,128,0.78)", bc: "#16a34a" },
+    { key: "top20", label: "Top 20", bg: "rgba(96,165,250,0.78)", bc: "#3b82f6" },
+  ].map(s => ({
+    label: s.label,
+    data: series[s.key],
+    backgroundColor: s.bg,
+    borderColor: s.bc,
+    borderWidth: 1,
+    borderRadius: 3,
+  }));
+
   return new Chart(ctx, {
     type: "bar",
-    data: {
-      labels: labels,
-      datasets: [
-        {
-          label: "Top 10",
-          data: top10,
-          backgroundColor: "rgba(74, 222, 128, 0.75)",
-          borderColor: "#22c55e",
-          borderWidth: 1,
-          borderRadius: 3,
-        },
-        {
-          label: "Top 20",
-          data: top20,
-          backgroundColor: "rgba(96, 165, 250, 0.75)",
-          borderColor: "#3b82f6",
-          borderWidth: 1,
-          borderRadius: 3,
-        },
-      ],
-    },
+    data: { labels: labels, datasets: datasets },
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      layout: { padding: { top: 18 } },
       plugins: {
         legend: {
           position: "top",
@@ -247,14 +252,23 @@ function renderBarChart(canvasId, prev, labels, top10, top20) {
             },
           },
         },
+        datalabels: {
+          anchor: (ctx) => ctx.dataset.data[ctx.dataIndex] >= 0 ? "end" : "start",
+          align:  (ctx) => ctx.dataset.data[ctx.dataIndex] >= 0 ? "end" : "start",
+          color: "#e8ecf3",
+          font: { size: 10, weight: "600" },
+          formatter: (v) => {
+            if (v === null || v === undefined) return "";
+            const sign = v >= 0 ? "+" : "";
+            return `${sign}${v.toFixed(1)}%`;
+          },
+        },
       },
       scales: {
         x: { grid: { display: false } },
         y: {
           grid: { color: "rgba(42, 49, 66, 0.6)" },
-          ticks: {
-            callback: (v) => `${v >= 0 ? "+" : ""}${v}%`,
-          },
+          ticks: { callback: (v) => `${v >= 0 ? "+" : ""}${v}%` },
         },
       },
     },
@@ -264,13 +278,15 @@ function renderBarChart(canvasId, prev, labels, top10, top20) {
 function renderStatsTable(tbodyId, rows) {
   const tbody = document.getElementById(tbodyId);
   if (rows.length === 0 || rows.every(r => r.count === 0)) {
-    tbody.innerHTML = `<tr><td colspan="6" class="empty">데이터 없음</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8" class="empty">데이터 없음</td></tr>`;
     return;
   }
   tbody.innerHTML = rows.map(r => `
     <tr>
       <td><strong>${r.label}</strong></td>
       <td class="num">${r.count}</td>
+      <td class="num ${retClass(r.top5_mean)}">${fmtPct(r.top5_mean)}</td>
+      <td class="num ${retClass(r.top5_sum)}">${fmtPct(r.top5_sum)}</td>
       <td class="num ${retClass(r.top10_mean)}">${fmtPct(r.top10_mean)}</td>
       <td class="num ${retClass(r.top10_sum)}">${fmtPct(r.top10_sum)}</td>
       <td class="num ${retClass(r.top20_mean)}">${fmtPct(r.top20_mean)}</td>
