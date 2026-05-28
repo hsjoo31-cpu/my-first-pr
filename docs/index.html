@@ -65,6 +65,57 @@
     </p>
   </section>
 
+  <section class="dashboard">
+    <h2>연도별 퍼포먼스 <span class="chart-metric">(연간 합산 수익률)</span></h2>
+    <p class="dashboard-note">
+      각 연도에 발생한 월별 수익률(다음 달 평균)의 단순 합. 복리 미적용.
+    </p>
+    <div class="chart-wrap"><canvas id="year-chart"></canvas></div>
+    <div class="table-wrap">
+      <table class="compact">
+        <thead>
+          <tr>
+            <th>연도</th>
+            <th class="num">월수</th>
+            <th class="num">Top10 월평균</th>
+            <th class="num">Top10 합산</th>
+            <th class="num">Top20 월평균</th>
+            <th class="num">Top20 합산</th>
+          </tr>
+        </thead>
+        <tbody id="year-table-body">
+          <tr><td colspan="6" class="empty">집계 중...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="dashboard">
+    <h2>월별 계절성 <span class="chart-metric">(매 월 평균 수익률)</span></h2>
+    <p class="dashboard-note">
+      매 1월의 수익률, 매 2월의 수익률… 12개월 각각을 모든 연도에 걸쳐 평균.
+      특정 월에 강세/약세 패턴이 있는지 확인.
+    </p>
+    <div class="chart-wrap"><canvas id="month-chart"></canvas></div>
+    <div class="table-wrap">
+      <table class="compact">
+        <thead>
+          <tr>
+            <th>월</th>
+            <th class="num">표본수</th>
+            <th class="num">Top10 평균</th>
+            <th class="num">Top10 합산</th>
+            <th class="num">Top20 평균</th>
+            <th class="num">Top20 합산</th>
+          </tr>
+        </thead>
+        <tbody id="month-table-body">
+          <tr><td colspan="6" class="empty">집계 중...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
   <section class="results">
     <h2>스크리닝 결과</h2>
     <div class="table-wrap">
@@ -96,6 +147,7 @@
     </p>
   </footer>
 
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
