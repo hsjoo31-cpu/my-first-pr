@@ -1,0 +1,78 @@
+name: Monthly Screener
+
+on:
+  schedule:
+    # 매월 1~5일 KST 18:00 (UTC 09:00) — 첫 거래일을 보장
+    - cron: "0 9 1-5 * *"
+  workflow_dispatch:  # 수동 실행
+
+permissions:
+  contents: write
+
+jobs:
+  screen:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check first trading day of month
+        id: check
+        run: |
+          python <<'EOF'
+          import os, sys
+          from datetime import datetime, timedelta, timezone
+
+          KST = timezone(timedelta(hours=9))
+          now = datetime.now(KST)
+
+          # 수동 실행이면 항상 진행
+          if os.environ.get("GITHUB_EVENT_NAME") == "workflow_dispatch":
+              print("manual run → proceed")
+              with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+                  f.write("run=true\n")
+              sys.exit(0)
+
+          # cron 실행: 같은 달에 today 이전에 평일이 있었는지 확인
+          # 평일이 없었다면 today가 그 달의 첫 거래일
+          today = now.date()
+          for i in range(1, today.day):
+              d = today.replace(day=i)
+              if d.weekday() < 5:  # 0~4 = Mon~Fri
+                  print(f"earlier weekday exists ({d}) → skip")
+                  with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+                      f.write("run=false\n")
+                  sys.exit(0)
+          print(f"first trading day candidate: {today} → proceed")
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              f.write("run=true\n")
+          EOF
+
+      - name: Setup Python
+        if: steps.check.outputs.run == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        if: steps.check.outputs.run == 'true'
+        run: |
+          pip install -r requirements.txt
+
+      - name: Run screener
+        if: steps.check.outputs.run == 'true'
+        run: |
+          python scripts/monthly_screener.py
+
+      - name: Commit and push results
+        if: steps.check.outputs.run == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/data/results.json
+          if git diff --staged --quiet; then
+            echo "no changes"
+          else
+            git commit -m "chore: auto-update screener results"
+            git push
+          fi
