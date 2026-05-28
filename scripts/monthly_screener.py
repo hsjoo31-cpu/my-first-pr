@@ -103,14 +103,15 @@ def main():
     universe["yf_ticker"] = universe["Code"] + universe["MarketId"].apply(yf_suffix)
     print(f"  → {len(universe)}개", flush=True)
 
-    # [2] 직전 캘린더 월의 수익률
-    print("[2/4] 직전 월 수익률 계산...", flush=True)
+    # [2] 월봉 종가 기준 수익률 (직전 월말 종가 → 측정 월말 종가)
+    print("[2/4] 월봉 수익률 계산...", flush=True)
     this_month_first = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     prev_month_last = this_month_first - timedelta(days=1)
     prev_month_first = prev_month_last.replace(day=1)
     target_month_str = prev_month_first.strftime("%Y-%m")
 
-    fetch_start = (prev_month_first - timedelta(days=5)).strftime("%Y-%m-%d")
+    # 측정 월의 직전 월 말일 종가가 필요 → 넉넉히 10일 더 받음
+    fetch_start = (prev_month_first - timedelta(days=10)).strftime("%Y-%m-%d")
     fetch_end = this_month_first.strftime("%Y-%m-%d")
 
     prices = fetch_close_panel(
@@ -122,20 +123,28 @@ def main():
     if prices.empty:
         raise RuntimeError("가격 데이터 없음")
 
-    month_mask = (prices.index >= prev_month_first.replace(tzinfo=None)) & \
-                 (prices.index < this_month_first.replace(tzinfo=None))
+    pmf_naive = prev_month_first.replace(tzinfo=None)
+    tmf_naive = this_month_first.replace(tzinfo=None)
+
+    # 측정 월에 속한 거래일
+    month_mask = (prices.index >= pmf_naive) & (prices.index < tmf_naive)
     prices_month = prices.loc[month_mask]
     if prices_month.empty:
         raise RuntimeError(f"{target_month_str} 거래일 데이터 없음")
+    end_dt = prices_month.index[-1]  # 측정 월의 마지막 거래일
 
-    start_dt = prices_month.index[0]
-    end_dt = prices_month.index[-1]
+    # 직전 월의 마지막 거래일 (측정 월 첫째 날 이전 가장 가까운 거래일)
+    prior = prices.loc[prices.index < pmf_naive]
+    if prior.empty:
+        raise RuntimeError(f"{target_month_str} 직전 월말 종가 데이터 없음")
+    start_dt = prior.index[-1]
+
     report_cutoff = end_dt - timedelta(days=REPORT_WINDOW_DAYS)
 
     print(f"  → 측정 월: {target_month_str}", flush=True)
-    print(f"  → 거래일 범위: {start_dt.date()} ~ {end_dt.date()}", flush=True)
+    print(f"  → 월봉 종가 기준: {start_dt.date()} → {end_dt.date()}", flush=True)
 
-    returns = (prices_month.loc[end_dt] / prices_month.loc[start_dt] - 1) * 100
+    returns = (prices.loc[end_dt] / prices.loc[start_dt] - 1) * 100
     returns = returns.dropna()
 
     df = (

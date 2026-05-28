@@ -25,7 +25,7 @@
       <span class="value" id="target-month">—</span>
     </div>
     <div class="meta-card">
-      <span class="label">거래일 범위</span>
+      <span class="label">월봉 종가 기준</span>
       <span class="value" id="period">—</span>
     </div>
     <div class="meta-card">
@@ -42,12 +42,12 @@
     <h2>스크리닝 기준</h2>
     <ol>
       <li>KOSPI + KOSDAQ 전 종목 시가총액 <strong>3000억 이상</strong></li>
-      <li>직전 <strong>1개월 주가상승률 상위 100위</strong></li>
+      <li>직전 <strong>월봉 수익률(전월말 종가 → 측정월말 종가)</strong> 상위 100위</li>
       <li>네이버 금융 애널리스트 리포트 <strong>3개월 내 2건 이상</strong></li>
     </ol>
     <p class="schedule">
-      매월 1일에 <strong>직전 캘린더 월</strong> 기준으로 자동 스크리닝
-      <br>예: 2026-02-01 실행 → 2026-01-01 ~ 2026-01-31 측정 → 2월 보유 종목 추천
+      매월 첫 거래일에 <strong>직전 월봉</strong> 기준으로 자동 스크리닝
+      <br>예: 2026-02-01 실행 → 2025-12-31 종가 vs 2026-01-31 종가 → 2월 보유 추천
     </p>
   </section>
 
