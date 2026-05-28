@@ -92,7 +92,13 @@ def get_report_count(ticker: str, cutoff: datetime) -> int:
 
 
 def main():
-    now = datetime.now(KST)
+    # 테스트용: RUN_AS_DATE=YYYY-MM-DD 환경변수로 실행 일자 override
+    override = os.environ.get("RUN_AS_DATE")
+    if override:
+        now = datetime.strptime(override, "%Y-%m-%d").replace(tzinfo=KST)
+        print(f"⚙ RUN_AS_DATE override: {override}", flush=True)
+    else:
+        now = datetime.now(KST)
     print(f"실행 시각: {now.isoformat()}", flush=True)
 
     # [1] Universe
