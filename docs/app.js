@@ -162,6 +162,19 @@ function buildDashboard(history) {
     };
   });
 
+  // 전체 기간 합산/평균 추가
+  const allTop5  = years.flatMap(y => byYear[y].top5);
+  const allTop10 = years.flatMap(y => byYear[y].top10);
+  const allTop20 = years.flatMap(y => byYear[y].top20);
+  yearRows.push({
+    label: "전체",
+    count: allTop10.length,
+    top5_mean: mean(allTop5),   top5_sum: sum(allTop5),
+    top10_mean: mean(allTop10), top10_sum: sum(allTop10),
+    top20_mean: mean(allTop20), top20_sum: sum(allTop20),
+    isTotal: true,
+  });
+
   const allMonths = ["01","02","03","04","05","06","07","08","09","10","11","12"];
   const monthRows = allMonths.map(m => {
     const d = byMonth[m] || { top5: [], top10: [], top20: [] };
@@ -282,7 +295,7 @@ function renderStatsTable(tbodyId, rows) {
     return;
   }
   tbody.innerHTML = rows.map(r => `
-    <tr>
+    <tr${r.isTotal ? ' class="total-row"' : ""}>
       <td><strong>${r.label}</strong></td>
       <td class="num">${r.count}</td>
       <td class="num ${retClass(r.top5_mean)}">${fmtPct(r.top5_mean)}</td>

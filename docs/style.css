@@ -175,6 +175,11 @@ table.compact th, table.compact td {
   padding: 8px 12px;
   font-size: 13px;
 }
+tr.total-row {
+  background: rgba(74, 222, 128, 0.06);
+  border-top: 2px solid var(--border);
+}
+tr.total-row td { font-weight: 600; }
 
 .results h2 {
   font-size: 14px;
