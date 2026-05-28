@@ -14,18 +14,23 @@
     </p>
   </header>
 
+  <section class="month-selector">
+    <label for="month-select">측정 월:</label>
+    <select id="month-select"></select>
+  </section>
+
   <section class="meta">
     <div class="meta-card">
-      <span class="label">최근 업데이트</span>
-      <span class="value" id="updated-at">—</span>
+      <span class="label">측정 월</span>
+      <span class="value" id="target-month">—</span>
     </div>
     <div class="meta-card">
-      <span class="label">측정 구간</span>
+      <span class="label">거래일 범위</span>
       <span class="value" id="period">—</span>
     </div>
     <div class="meta-card">
-      <span class="label">전체 유니버스</span>
-      <span class="value" id="universe-size">—</span>
+      <span class="label">업데이트</span>
+      <span class="value" id="updated-at">—</span>
     </div>
     <div class="meta-card">
       <span class="label">조건 통과</span>
@@ -40,7 +45,10 @@
       <li>직전 <strong>1개월 주가상승률 상위 100위</strong></li>
       <li>네이버 금융 애널리스트 리포트 <strong>3개월 내 2건 이상</strong></li>
     </ol>
-    <p class="schedule">매월 첫 거래일 자동 업데이트</p>
+    <p class="schedule">
+      매월 1일에 <strong>직전 캘린더 월</strong> 기준으로 자동 스크리닝
+      <br>예: 2026-02-01 실행 → 2026-01-01 ~ 2026-01-31 측정 → 2월 보유 종목 추천
+    </p>
   </section>
 
   <section class="results">
