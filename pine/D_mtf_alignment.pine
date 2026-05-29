@@ -1,0 +1,52 @@
+//@version=5
+// 전략 D — 멀티타임프레임 정렬 추세 (진입 15m, 1h·4h 정렬 확인)
+// 15m·1h·4h EMA20-50 방향이 모두 같은 쪽으로 정렬되는 순간 진입(추세 동조).
+// 선별적이라 거래 빈도는 낮지만 손익비를 크게(기본 2.5) 가져가는 설계.
+//
+// 사용법: BTCUSDT.P 15분봉 차트에 적용.
+strategy("D 멀티TF 정렬 (15m/1h/4h)", overlay=true, initial_capital=10000,
+     currency=currency.USD, commission_type=strategy.commission.percent,
+     commission_value=0.06, pyramiding=0,
+     default_qty_type=strategy.percent_of_equity, default_qty_value=100,
+     calc_on_every_tick=false)
+
+riskPct = input.float(1.0, "거래당 리스크 %", step=0.25) / 100.0
+maxLev  = input.float(4.0, "최대 레버리지", step=0.5)
+atrMult = input.float(1.5, "ATR 손절 배수", step=0.1)
+rr      = input.float(2.5, "손익비 R:R", step=0.1)
+tf1     = input.timeframe("60", "중기 타임프레임")
+tf2     = input.timeframe("240", "장기 타임프레임")
+
+diff(src) => ta.ema(src, 20) - ta.ema(src, 50)
+e15 = diff(close)
+e1h = request.security(syminfo.tickerid, tf1, diff(close), lookahead=barmerge.lookahead_off)
+e4h = request.security(syminfo.tickerid, tf2, diff(close), lookahead=barmerge.lookahead_off)
+atrv = ta.atr(14)
+
+alignedLong  = e15 > 0 and e1h > 0 and e4h > 0
+alignedShort = e15 < 0 and e1h < 0 and e4h < 0
+longCond  = alignedLong  and not alignedLong[1]    // 정렬이 막 형성된 순간만
+shortCond = alignedShort and not alignedShort[1]
+
+stopDist = atrMult * atrv
+riskAmt  = strategy.equity * riskPct
+qtyRisk  = stopDist > 0 ? riskAmt / stopDist : 0.0
+qtyCap   = strategy.equity * maxLev / close
+qty      = math.min(qtyRisk, qtyCap)
+
+var float sd = na
+if longCond and strategy.position_size == 0
+    sd := stopDist
+    strategy.entry("L", strategy.long, qty=qty)
+if shortCond and strategy.position_size == 0
+    sd := stopDist
+    strategy.entry("S", strategy.short, qty=qty)
+
+if strategy.position_size > 0
+    strategy.exit("L-x", "L", stop=strategy.position_avg_price - sd,
+         limit=strategy.position_avg_price + rr * sd)
+if strategy.position_size < 0
+    strategy.exit("S-x", "S", stop=strategy.position_avg_price + sd,
+         limit=strategy.position_avg_price - rr * sd)
+
+bgcolor(alignedLong ? color.new(color.green, 90) : alignedShort ? color.new(color.red, 90) : na)
