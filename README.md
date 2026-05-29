@@ -38,3 +38,17 @@ python backtest.py
 ### Pages 활성화 (저장소 Settings)
 
 Settings → Pages → Source: `main` branch, `/docs` folder → Save
+
+## 5. 비트코인 선물 변동성 돌파 백테스트
+
+`vol_breakout_backtest.py` — 바이낸스 USDT-M 선물(`BTC/USDT`)의 분봉 변동성 돌파
+전략을 백테스트. 각 봉의 목표가 = 시가 + k × (직전 봉 고가−저가), 봉 내 고가가
+목표가를 돌파하면 롱 진입·봉 마감 청산. k = 0.3/0.5/0.7/1.0 비교, 수수료·슬리피지 반영.
+
+```
+pip install -r requirements.txt
+python vol_breakout_backtest.py
+```
+
+> ⚠️ 레버리지 선물은 청산 위험이 큽니다. 학습/검증용 백테스트이며, 실거래 전
+> 반드시 테스트넷에서 검증하세요. 데이터 수집에는 바이낸스 API 접속이 필요합니다.
