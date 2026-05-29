@@ -7,3 +7,10 @@ momentum_screener.csv
 backtest_equity.csv
 backtest_summary.csv
 backfill_reports.json
+
+# vol breakout 백테스트 산출물
+vb_*.parquet
+vol_breakout_*.csv
+multi_strategy_*.csv
+ms_*.parquet
+*.bak

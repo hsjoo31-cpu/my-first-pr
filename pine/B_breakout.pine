@@ -1,0 +1,53 @@
+//@version=5
+// 전략 B — 변동성 돌파 (메인 5m, 상위 15m 추세 필터)
+// 목표가 = 시가 + k*(직전 봉 고가-저가). 종가가 상단 돌파 & 15m EMA 위면 롱,
+// 하단 돌파 & 15m EMA 아래면 숏. ATR 손절 + R:R 익절.
+//
+// 사용법: BTCUSDT.P 5분봉 차트에 적용. 거래 빈도가 높으니 수수료 영향 큼.
+strategy("B 변동성돌파 (5m/15m)", overlay=true, initial_capital=10000,
+     currency=currency.USD, commission_type=strategy.commission.percent,
+     commission_value=0.06, pyramiding=0,
+     default_qty_type=strategy.percent_of_equity, default_qty_value=100,
+     calc_on_every_tick=false)
+
+riskPct = input.float(0.75, "거래당 리스크 %", step=0.25) / 100.0
+maxLev  = input.float(3.0, "최대 레버리지", step=0.5)
+atrMult = input.float(1.5, "ATR 손절 배수", step=0.1)
+rr      = input.float(1.5, "손익비 R:R", step=0.1)
+k       = input.float(0.5, "변동성 계수 k", step=0.1)
+htf     = input.timeframe("15", "상위 추세 타임프레임")
+
+rng  = high[1] - low[1]
+upT  = open + k * rng
+dnT  = open - k * rng
+htfEma = request.security(syminfo.tickerid, htf, ta.ema(close, 50),
+     lookahead=barmerge.lookahead_off)
+atrv = ta.atr(14)
+
+longCond  = close >= upT and close > htfEma
+shortCond = close <= dnT and close < htfEma
+
+stopDist = atrMult * atrv
+riskAmt  = strategy.equity * riskPct
+qtyRisk  = stopDist > 0 ? riskAmt / stopDist : 0.0
+qtyCap   = strategy.equity * maxLev / close
+qty      = math.min(qtyRisk, qtyCap)
+
+var float sd = na
+if longCond and strategy.position_size == 0
+    sd := stopDist
+    strategy.entry("L", strategy.long, qty=qty)
+if shortCond and strategy.position_size == 0
+    sd := stopDist
+    strategy.entry("S", strategy.short, qty=qty)
+
+if strategy.position_size > 0
+    strategy.exit("L-x", "L", stop=strategy.position_avg_price - sd,
+         limit=strategy.position_avg_price + rr * sd)
+if strategy.position_size < 0
+    strategy.exit("S-x", "S", stop=strategy.position_avg_price + sd,
+         limit=strategy.position_avg_price - rr * sd)
+
+plot(upT, "상단목표", color.green)
+plot(dnT, "하단목표", color.red)
+plot(htfEma, "HTF EMA", color.gray)

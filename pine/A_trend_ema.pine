@@ -1,0 +1,59 @@
+//@version=5
+// 전략 A — EMA 추세추종 (메인 15m, 상위 1h 추세 필터)
+// 15m EMA20/50 골든·데드크로스로 진입, 1h EMA50 방향으로 롱/숏 필터.
+// ATR 기반 손절 + 손익비(R:R) 익절. 거래당 리스크 % 로 포지션 사이징, 레버리지 상한.
+//
+// 사용법: BTCUSDT.P (바이낸스 선물) 15분봉 차트에 적용 → Strategy Tester 확인.
+// 비용: 수수료+슬리피지를 편도 0.06%로 합산 반영(아래 commission_value).
+//   ⚠️ TradingView 전략은 청산(liquidation)을 모델링하지 않습니다. 레버리지는
+//      포지션 명목금액 상한으로만 반영되니 실거래 청산 위험은 별도 고려하세요.
+strategy("A 추세추종 EMA (15m/1h)", overlay=true, initial_capital=10000,
+     currency=currency.USD, commission_type=strategy.commission.percent,
+     commission_value=0.06, pyramiding=0,
+     default_qty_type=strategy.percent_of_equity, default_qty_value=100,
+     calc_on_every_tick=false)
+
+// ── 입력 ──
+riskPct = input.float(1.0, "거래당 리스크 %", step=0.25) / 100.0
+maxLev  = input.float(3.0, "최대 레버리지", step=0.5)
+atrMult = input.float(1.5, "ATR 손절 배수", step=0.1)
+rr      = input.float(2.0, "손익비 R:R", step=0.1)
+fastLen = input.int(20, "EMA 빠른")
+slowLen = input.int(50, "EMA 느린")
+htf     = input.timeframe("60", "상위 추세 타임프레임")
+
+// ── 지표 ──
+fast = ta.ema(close, fastLen)
+slow = ta.ema(close, slowLen)
+htfEma = request.security(syminfo.tickerid, htf, ta.ema(close, slowLen),
+     lookahead=barmerge.lookahead_off)
+atrv = ta.atr(14)
+
+longCond  = ta.crossover(fast, slow)  and close > htfEma
+shortCond = ta.crossunder(fast, slow) and close < htfEma
+
+// ── 사이징: risk% 를 손절폭에 맞춰 베팅, 레버리지 상한 ──
+stopDist = atrMult * atrv
+riskAmt  = strategy.equity * riskPct
+qtyRisk  = stopDist > 0 ? riskAmt / stopDist : 0.0
+qtyCap   = strategy.equity * maxLev / close
+qty      = math.min(qtyRisk, qtyCap)
+
+var float sd = na   // 진입 시점 손절폭 저장
+if longCond and strategy.position_size == 0
+    sd := stopDist
+    strategy.entry("L", strategy.long, qty=qty)
+if shortCond and strategy.position_size == 0
+    sd := stopDist
+    strategy.entry("S", strategy.short, qty=qty)
+
+if strategy.position_size > 0
+    strategy.exit("L-x", "L", stop=strategy.position_avg_price - sd,
+         limit=strategy.position_avg_price + rr * sd)
+if strategy.position_size < 0
+    strategy.exit("S-x", "S", stop=strategy.position_avg_price + sd,
+         limit=strategy.position_avg_price - rr * sd)
+
+plot(fast, "EMA fast", color.aqua)
+plot(slow, "EMA slow", color.orange)
+plot(htfEma, "HTF EMA", color.gray)

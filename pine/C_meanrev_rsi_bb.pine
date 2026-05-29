@@ -1,0 +1,63 @@
+//@version=5
+// 전략 C — RSI + 볼린저 평균회귀 (메인 5m, 1h 레짐 필터)
+// 1h 추세가 약한 횡보 구간에서만, 볼린저 하단+RSI 과매도 → 롱 / 상단+과매수 → 숏.
+// 평균회귀는 추세장에서 위험하므로 1h EMA20-50 격차가 ATR보다 작을 때만 거래.
+// 승률은 높게 나오기 쉬우나 손익비가 낮아 꼬리위험 주의(앞선 분석 참고).
+//
+// 사용법: BTCUSDT.P 5분봉 차트에 적용.
+strategy("C 평균회귀 RSI+BB (5m/1h)", overlay=true, initial_capital=10000,
+     currency=currency.USD, commission_type=strategy.commission.percent,
+     commission_value=0.06, pyramiding=0,
+     default_qty_type=strategy.percent_of_equity, default_qty_value=100,
+     calc_on_every_tick=false)
+
+riskPct = input.float(0.5, "거래당 리스크 %", step=0.25) / 100.0
+maxLev  = input.float(2.0, "최대 레버리지", step=0.5)
+atrMult = input.float(1.5, "ATR 손절 배수", step=0.1)
+rr      = input.float(1.0, "손익비 R:R", step=0.1)
+bbLen   = input.int(20, "볼린저 기간")
+bbMult  = input.float(2.0, "볼린저 표준편차", step=0.1)
+rsiLen  = input.int(14, "RSI 기간")
+htf     = input.timeframe("60", "레짐 판단 타임프레임")
+
+basis = ta.sma(close, bbLen)
+dev   = bbMult * ta.stdev(close, bbLen)
+upper = basis + dev
+lower = basis - dev
+r     = ta.rsi(close, rsiLen)
+atrv  = ta.atr(14)
+
+// 1h 레짐: 추세 약함(횡보) 판단
+htfDiff = request.security(syminfo.tickerid, htf,
+     math.abs(ta.ema(close, 20) - ta.ema(close, 50)), lookahead=barmerge.lookahead_off)
+htfAtr  = request.security(syminfo.tickerid, htf, ta.atr(14),
+     lookahead=barmerge.lookahead_off)
+flat = htfDiff < htfAtr
+
+longCond  = close < lower and r < 30 and flat
+shortCond = close > upper and r > 70 and flat
+
+stopDist = atrMult * atrv
+riskAmt  = strategy.equity * riskPct
+qtyRisk  = stopDist > 0 ? riskAmt / stopDist : 0.0
+qtyCap   = strategy.equity * maxLev / close
+qty      = math.min(qtyRisk, qtyCap)
+
+var float sd = na
+if longCond and strategy.position_size == 0
+    sd := stopDist
+    strategy.entry("L", strategy.long, qty=qty)
+if shortCond and strategy.position_size == 0
+    sd := stopDist
+    strategy.entry("S", strategy.short, qty=qty)
+
+if strategy.position_size > 0
+    strategy.exit("L-x", "L", stop=strategy.position_avg_price - sd,
+         limit=strategy.position_avg_price + rr * sd)
+if strategy.position_size < 0
+    strategy.exit("S-x", "S", stop=strategy.position_avg_price + sd,
+         limit=strategy.position_avg_price - rr * sd)
+
+plot(upper, "BB 상단", color.red)
+plot(basis, "BB 중심", color.gray)
+plot(lower, "BB 하단", color.green)
