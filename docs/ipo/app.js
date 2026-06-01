@@ -11,6 +11,7 @@ const params = {
   losscut: 10,               // 손절 기준 (%, 0 = 없음)
   holdingMonths: 3,          // 최대 보유기간 (개월)
   target: 20,                // 목표수익률 (%)
+  buyWindow: 0,              // 매수 기회 기간 (상장 후 N개월, 0 = 무제한)
 };
 
 // ──────────────────────────────────────────
@@ -74,6 +75,14 @@ function bindControls() {
     params.target = +val;
     render();
   });
+
+  // 매수 기회 기간 (상장 후 N개월)
+  const buyWindowInput = document.getElementById("buywindow-input");
+  buyWindowInput.addEventListener("change", () => {
+    params.buyWindow = Math.max(0, Math.min(48, +buyWindowInput.value || 0));
+    buyWindowInput.value = params.buyWindow;
+    render();
+  });
 }
 
 function bindTabs(groupId, onChange) {
@@ -131,9 +140,15 @@ function backtestStock(stock) {
   const buyTrigger = refPrice * (1 - params.n / 100);
   const prices = stock.prices; // [{d,o,h,l,c}, ...]
 
+  // 매수 기회 기간: 상장일로부터 N개월 이내에 트리거가 발생해야 후보로 인정
+  const windowCutoff =
+    params.buyWindow > 0 ? addMonths(stock.ipo_date, params.buyWindow) : null;
+
   // ── 매수일 탐색 ──
   let buyIdx = -1;
   for (let i = 0; i < prices.length; i++) {
+    // 매수 기회 기간을 벗어나면 탐색 중단 → 후보 제외
+    if (windowCutoff && prices[i].d > windowCutoff) break;
     if (prices[i].l <= buyTrigger) {
       buyIdx = i;
       break;
