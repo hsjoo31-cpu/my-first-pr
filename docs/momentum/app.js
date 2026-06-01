@@ -7,7 +7,7 @@ async function load() {
   try {
     let history = [];
     try {
-      const hres = await fetch("data/history.json?ts=" + Date.now());
+      const hres = await fetch("../data/history.json?ts=" + Date.now());
       if (hres.ok) history = await hres.json();
     } catch (_) {}
 
@@ -17,7 +17,7 @@ async function load() {
       renderMonth(history[0].target_month);
       buildDashboard(history);
     } else {
-      const res = await fetch("data/results.json?ts=" + Date.now());
+      const res = await fetch("../data/results.json?ts=" + Date.now());
       if (!res.ok) throw new Error("HTTP " + res.status);
       const data = await res.json();
       const ym = data.target_month || (data.period && data.period.end ? data.period.end.slice(0, 7) : "current");

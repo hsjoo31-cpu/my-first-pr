@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KR 모멘텀 스크리너</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <a class="back-link" href="../index.html">← 홈으로</a>
+    <h1>국내 주식 모멘텀 스크리너</h1>
+    <p class="subtitle">
+      KOSPI · KOSDAQ · 시총 3000억 이상 · 1개월 수익률 상위 · 애널리스트 리포트 검증
+    </p>
+  </header>
+
+  <section class="month-selector">
+    <label for="month-select">측정 월:</label>
+    <select id="month-select"></select>
+  </section>
+
+  <section class="meta">
+    <div class="meta-card">
+      <span class="label">측정 월</span>
+      <span class="value" id="target-month">—</span>
+    </div>
+    <div class="meta-card">
+      <span class="label">월봉 종가 기준</span>
+      <span class="value" id="period">—</span>
+    </div>
+    <div class="meta-card">
+      <span class="label">업데이트</span>
+      <span class="value" id="updated-at">—</span>
+    </div>
+    <div class="meta-card">
+      <span class="label">조건 통과</span>
+      <span class="value highlight" id="passed-count">—</span>
+    </div>
+  </section>
+
+  <section class="forward-section" id="forward-section" hidden>
+    <h2>다음 달 매수 시 평균 수익률 <span class="fwd-month" id="fwd-month-label"></span></h2>
+    <div class="forward-cards">
+      <div class="meta-card forward-card">
+        <span class="label">상위 5 종목 평균</span>
+        <span class="value" id="fwd-top5">—</span>
+      </div>
+      <div class="meta-card forward-card">
+        <span class="label">상위 10 종목 평균</span>
+        <span class="value" id="fwd-top10">—</span>
+      </div>
+      <div class="meta-card forward-card">
+        <span class="label">상위 20 종목 평균</span>
+        <span class="value" id="fwd-top20">—</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="criteria">
+    <h2>스크리닝 기준</h2>
+    <ol>
+      <li>KOSPI + KOSDAQ 전 종목 시가총액 <strong>3000억 이상</strong></li>
+      <li>직전 <strong>월봉 수익률(전월말 종가 → 측정월말 종가)</strong> 상위 100위</li>
+      <li>네이버 금융 애널리스트 리포트 <strong>3개월 내 2건 이상</strong></li>
+    </ol>
+    <p class="schedule">
+      매월 첫 거래일에 <strong>직전 월봉</strong> 기준으로 자동 스크리닝
+      <br>예: 2026-02-01 실행 → 2025-12-31 종가 vs 2026-01-31 종가 → 2월 보유 추천
+    </p>
+  </section>
+
+  <section class="dashboard">
+    <h2>연도별 퍼포먼스 <span class="chart-metric">(연간 합산 수익률)</span></h2>
+    <p class="dashboard-note">
+      각 연도에 발생한 월별 수익률(다음 달 평균)의 단순 합. 복리 미적용.
+    </p>
+    <div class="chart-wrap"><canvas id="year-chart"></canvas></div>
+    <div class="table-wrap">
+      <table class="compact">
+        <thead>
+          <tr>
+            <th>연도</th>
+            <th class="num">월수</th>
+            <th class="num">Top5 월평균</th>
+            <th class="num">Top5 합산</th>
+            <th class="num">Top10 월평균</th>
+            <th class="num">Top10 합산</th>
+            <th class="num">Top20 월평균</th>
+            <th class="num">Top20 합산</th>
+          </tr>
+        </thead>
+        <tbody id="year-table-body">
+          <tr><td colspan="8" class="empty">집계 중...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="dashboard">
+    <h2>월별 계절성 <span class="chart-metric">(매 월 평균 수익률)</span></h2>
+    <p class="dashboard-note">
+      매 1월의 수익률, 매 2월의 수익률… 12개월 각각을 모든 연도에 걸쳐 평균.
+      특정 월에 강세/약세 패턴이 있는지 확인.
+    </p>
+    <div class="chart-wrap"><canvas id="month-chart"></canvas></div>
+    <div class="table-wrap">
+      <table class="compact">
+        <thead>
+          <tr>
+            <th>월</th>
+            <th class="num">표본수</th>
+            <th class="num">Top5 평균</th>
+            <th class="num">Top5 합산</th>
+            <th class="num">Top10 평균</th>
+            <th class="num">Top10 합산</th>
+            <th class="num">Top20 평균</th>
+            <th class="num">Top20 합산</th>
+          </tr>
+        </thead>
+        <tbody id="month-table-body">
+          <tr><td colspan="8" class="empty">집계 중...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="results">
+    <h2>스크리닝 결과</h2>
+    <div class="table-wrap">
+      <table id="results-table">
+        <thead>
+          <tr>
+            <th>순위</th>
+            <th>종목명</th>
+            <th>티커</th>
+            <th>시장</th>
+            <th class="num">수익률</th>
+            <th class="num">시가총액 (억)</th>
+            <th class="num">리포트 (3M)</th>
+            <th>외부 링크</th>
+          </tr>
+        </thead>
+        <tbody id="results-body">
+          <tr><td colspan="8" class="empty">데이터 로딩 중...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer>
+    <p>
+      투자 자문이 아니며, 데이터 정확성을 보장하지 않습니다.
+      소스: <a href="https://finance.naver.com/" target="_blank" rel="noopener">네이버 금융</a>,
+      <a href="https://finance.yahoo.com/" target="_blank" rel="noopener">Yahoo Finance</a>
+    </p>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
