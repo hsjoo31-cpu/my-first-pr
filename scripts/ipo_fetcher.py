@@ -2,7 +2,7 @@
 """IPO 백테스팅 데이터 수집 스크립트
 
 1. KIND(KRX 공시) → 2023-06-26 이후 상장 종목 목록 + 상장일
-2. ipostock.co.kr  → 공모가 (베스트 에포트; 실패해도 None으로 처리)
+2. finuts.co.kr    → 공모가 (상장일 기준 매핑)
 3. FinanceDataReader → 일봉 OHLCV
 결과: docs/data/ipo_data.json
 """
@@ -65,32 +65,76 @@ def get_listing_df() -> pd.DataFrame:
 
 
 # ──────────────────────────────────────────
-# 2. 공모가 — ipostock.co.kr 스크래핑
+# 2. 공모가 — finuts.co.kr API
 # ──────────────────────────────────────────
 
-def scrape_ipo_prices_ipostock(tickers: list[str]) -> dict[str, int]:
+def get_finuts_ipo_prices() -> dict[str, int]:
     """
-    ipostock.co.kr의 종목별 페이지에서 공모가를 수집한다.
-    실패해도 빈 dict 반환 — 공모가 없으면 프론트에서 시초가 탭만 활성화.
+    finuts.co.kr의 ipoListQuery.php API에서
+    {상장일: 공모가} 딕셔너리를 반환.
+    KIND 데이터와 상장일로 매핑하여 종목코드별 공모가를 확인.
     """
-    prices: dict[str, int] = {}
-    for ticker in tickers:
-        try:
-            url = f"https://ipostock.co.kr/view/ipo_cpninfo.asp?code={ticker}"
-            resp = requests.get(url, headers=HEADERS, timeout=10)
-            html = resp.content.decode("euc-kr", errors="replace")
+    url = "https://www.finuts.co.kr/html/task/ipo/ipoListQuery.php"
+    headers = {
+        **HEADERS,
+        "Referer": "https://www.finuts.co.kr/html/ipo/ipoList.php",
+        "Content-Type": "application/x-www-form-urlencoded",
+        "X-Requested-With": "XMLHttpRequest",
+    }
+    # {상장일: [(회사명, 공모가), ...]}
+    date_map: dict[str, list[tuple[str, int]]] = {}
+    try:
+        resp = requests.post(url, data={"active": "ipo-011", "search_text": ""},
+                             headers=headers, timeout=30)
+        resp.raise_for_status()
+        items = resp.json().get("data", [])
+        for item in items:
+            ipo_date = item.get("IPO_DATE", "")
+            pss_prc  = item.get("PSS_PRC", "")
+            ent_nm   = item.get("ENT_NM", "")
+            if ipo_date in ("9999-99-99", "", None):
+                continue
+            if not pss_prc:
+                continue
+            try:
+                price = int(str(pss_prc).replace(",", ""))
+            except ValueError:
+                continue
+            if price <= 0:
+                continue
+            date_map.setdefault(ipo_date, []).append((ent_nm, price))
+        print(f"  finuts 공모가: {sum(len(v) for v in date_map.values())}개 항목 "
+              f"({len(date_map)}개 날짜)")
+    except Exception as e:
+        print(f"  finuts API 실패: {e}")
+    return date_map
 
-            # "확정공모가" 또는 "공모가" 뒤의 숫자 패턴
-            m = re.search(r"확정\s*공모가[^\d]{0,20}([\d,]+)\s*원", html)
-            if not m:
-                m = re.search(r"공모가[^\d]{0,20}([\d,]+)\s*원", html)
-            if m:
-                prices[ticker] = int(m.group(1).replace(",", ""))
-        except Exception:
-            pass
-        time.sleep(0.15)
-    print(f"  ipostock 공모가: {len(prices)}/{len(tickers)}개 수집")
-    return prices
+
+def match_ipo_price(date_map: dict, ipo_date: str, name: str) -> int | None:
+    """
+    finuts 데이터와 (상장일, 회사명)으로 공모가를 매핑.
+    같은 날 1개면 바로 반환, 여러 개면 이름 유사도로 매핑.
+    """
+    candidates = date_map.get(ipo_date, [])
+    if not candidates:
+        return None
+    if len(candidates) == 1:
+        return candidates[0][1]
+
+    # 이름 정규화 후 비교 (공백·특수문자 제거, 소문자)
+    def normalize(s: str) -> str:
+        return re.sub(r"[\s\-_·]", "", s).lower()
+
+    norm_name = normalize(name)
+    for cand_name, price in candidates:
+        if normalize(cand_name) == norm_name:
+            return price
+    # 부분 일치
+    for cand_name, price in candidates:
+        if normalize(cand_name) in norm_name or norm_name in normalize(cand_name):
+            return price
+    # 매핑 실패 시 None
+    return None
 
 
 # ──────────────────────────────────────────
@@ -130,9 +174,8 @@ def main():
     listing = get_listing_df()
 
     # ── 공모가 ──
-    print("\n[2/3] 공모가 수집 (ipostock.co.kr)...")
-    tickers_list = listing["ticker"].tolist()
-    ipo_prices = scrape_ipo_prices_ipostock(tickers_list)
+    print("\n[2/3] 공모가 수집 (finuts.co.kr)...")
+    date_map = get_finuts_ipo_prices()
 
     # 기존 데이터에서 공모가 보존
     existing: dict[str, dict] = {}
@@ -165,7 +208,7 @@ def main():
 
         listing_open = prices[0]["o"]
         ipo_price = (
-            ipo_prices.get(ticker)
+            match_ipo_price(date_map, ipo_date, name)
             or existing.get(ticker, {}).get("ipo_price")
         )
 
