@@ -1,0 +1,346 @@
+"use strict";
+
+// ──────────────────────────────────────────
+// 상태
+// ──────────────────────────────────────────
+let allStocks = [];
+
+const params = {
+  reference: "listing_open", // "listing_open" | "ipo_price"
+  n: 20,                     // 매수 하락률 (%)
+  losscut: 10,               // 손절 기준 (%, 0 = 없음)
+  holdingMonths: 3,          // 최대 보유기간 (개월)
+  target: 20,                // 목표수익률 (%)
+};
+
+// ──────────────────────────────────────────
+// 초기화
+// ──────────────────────────────────────────
+async function init() {
+  bindControls();
+  await loadData();
+}
+
+async function loadData() {
+  setBody('<tr><td colspan="11" class="empty">데이터 로딩 중…</td></tr>');
+  try {
+    const res = await fetch("../data/ipo_data.json?ts=" + Date.now());
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const data = await res.json();
+    allStocks = data.stocks || [];
+    document.getElementById("updated-at").textContent = data.updated_at || "—";
+    document.getElementById("total-count").textContent = allStocks.length + "개";
+    render();
+  } catch (e) {
+    setBody(`<tr><td colspan="11" class="empty">데이터를 불러올 수 없습니다: ${e.message}</td></tr>`);
+  }
+}
+
+// ──────────────────────────────────────────
+// 컨트롤 바인딩
+// ──────────────────────────────────────────
+function bindControls() {
+  // 기준가 탭
+  bindTabs("ref-tabs", (val) => {
+    params.reference = val;
+    render();
+  });
+
+  // 매수 하락률 슬라이더
+  const slider = document.getElementById("n-slider");
+  const nVal = document.getElementById("n-val");
+  slider.addEventListener("input", () => {
+    params.n = +slider.value;
+    nVal.textContent = slider.value;
+    render();
+  });
+
+  // 손절 기준
+  const losscutInput = document.getElementById("losscut-input");
+  losscutInput.addEventListener("change", () => {
+    params.losscut = Math.max(0, Math.min(50, +losscutInput.value || 0));
+    losscutInput.value = params.losscut;
+    render();
+  });
+
+  // 최대 보유기간 탭
+  bindTabs("holding-tabs", (val) => {
+    params.holdingMonths = +val;
+    render();
+  });
+
+  // 목표수익률 탭
+  bindTabs("target-tabs", (val) => {
+    params.target = +val;
+    render();
+  });
+}
+
+function bindTabs(groupId, onChange) {
+  const group = document.getElementById(groupId);
+  group.querySelectorAll(".tab").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      if (btn.classList.contains("disabled")) return;
+      group.querySelectorAll(".tab").forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+      onChange(btn.dataset.value);
+    });
+  });
+}
+
+// ──────────────────────────────────────────
+// 백테스팅 핵심 로직
+// ──────────────────────────────────────────
+
+/**
+ * addMonths("2023-07-15", 3) → "2023-10-15"
+ * 월 말일 초과 시 자동 조정 (JS Date 기본 동작 활용)
+ */
+function addMonths(dateStr, months) {
+  const d = new Date(dateStr + "T00:00:00");
+  d.setMonth(d.getMonth() + months);
+  return d.toISOString().slice(0, 10);
+}
+
+function daysBetween(d1, d2) {
+  return Math.round((new Date(d2) - new Date(d1)) / 86400000);
+}
+
+function fmt(n, digits = 1) {
+  if (n == null) return "—";
+  const s = n.toFixed(digits);
+  return (n >= 0 ? "+" : "") + s + "%";
+}
+
+function fmtPrice(n) {
+  if (!n) return "—";
+  return n.toLocaleString("ko-KR") + "원";
+}
+
+/**
+ * 단일 종목 백테스트
+ * @returns {object} result
+ *   status: "no_signal" | "ongoing" | "target" | "losscut" | "expired" | "ambiguous"
+ */
+function backtestStock(stock) {
+  const refPrice =
+    params.reference === "ipo_price" ? stock.ipo_price : stock.listing_open;
+
+  if (!refPrice) return { status: "no_signal", reason: "기준가 없음" };
+
+  const buyTrigger = refPrice * (1 - params.n / 100);
+  const prices = stock.prices; // [{d,o,h,l,c}, ...]
+
+  // ── 매수일 탐색 ──
+  let buyIdx = -1;
+  for (let i = 0; i < prices.length; i++) {
+    if (prices[i].l <= buyTrigger) {
+      buyIdx = i;
+      break;
+    }
+  }
+
+  if (buyIdx === -1) return { status: "no_signal" };
+
+  const buyPrice = buyTrigger;
+  const buyDate = prices[buyIdx].d;
+  const sellCalendarDate = addMonths(buyDate, params.holdingMonths);
+
+  const targetSellPrice =
+    params.target > 0 ? buyPrice * (1 + params.target / 100) : Infinity;
+  const losscutThreshold =
+    params.losscut > 0 ? buyPrice * (1 - params.losscut / 100) : -Infinity;
+
+  // ── 매수일부터 시뮬레이션 ──
+  for (let i = buyIdx; i < prices.length; i++) {
+    const day = prices[i];
+
+    // 보유기간 만료 체크: 이 날의 날짜가 만료일 이상이면 시초가에 매도
+    // (buyIdx 당일은 만료 체크 제외 — 방금 산 날이므로)
+    if (i > buyIdx && day.d >= sellCalendarDate) {
+      const sellPct = ((day.o - buyPrice) / buyPrice) * 100;
+      return {
+        status: "expired",
+        buyDate,
+        sellDate: day.d,
+        daysHeld: daysBetween(buyDate, day.d),
+        returnPct: sellPct,
+        refPrice,
+        buyPrice,
+        sellPrice: day.o,
+      };
+    }
+
+    // 목표 / 손절 동시 발생 → 요확인
+    const targetHit = day.h >= targetSellPrice;
+    const losscutHit =
+      params.losscut > 0 && day.c <= losscutThreshold;
+
+    if (targetHit && losscutHit) {
+      return {
+        status: "ambiguous",
+        buyDate,
+        sellDate: day.d,
+        daysHeld: daysBetween(buyDate, day.d),
+        returnPct: null,
+        refPrice,
+        buyPrice,
+        sellPrice: null,
+      };
+    }
+
+    if (targetHit) {
+      return {
+        status: "target",
+        buyDate,
+        sellDate: day.d,
+        daysHeld: daysBetween(buyDate, day.d),
+        returnPct: params.target, // 목표가에 정확히 매도
+        refPrice,
+        buyPrice,
+        sellPrice: Math.round(targetSellPrice),
+      };
+    }
+
+    if (losscutHit) {
+      const sellPct = ((day.c - buyPrice) / buyPrice) * 100;
+      return {
+        status: "losscut",
+        buyDate,
+        sellDate: day.d,
+        daysHeld: daysBetween(buyDate, day.d),
+        returnPct: sellPct,
+        refPrice,
+        buyPrice,
+        sellPrice: day.c,
+      };
+    }
+  }
+
+  // 데이터 부족 (아직 보유 중)
+  return { status: "ongoing", buyDate, refPrice, buyPrice };
+}
+
+// ──────────────────────────────────────────
+// 렌더링
+// ──────────────────────────────────────────
+function render() {
+  // 공모가 탭 비활성화 처리
+  const ipoTab = document
+    .getElementById("ref-tabs")
+    .querySelector('[data-value="ipo_price"]');
+  const hasIpoPrice = allStocks.some((s) => s.ipo_price);
+  ipoTab.classList.toggle("disabled", !hasIpoPrice);
+  if (!hasIpoPrice && params.reference === "ipo_price") {
+    params.reference = "listing_open";
+    document
+      .getElementById("ref-tabs")
+      .querySelector('[data-value="listing_open"]')
+      .classList.add("active");
+    ipoTab.classList.remove("active");
+  }
+
+  const results = allStocks.map((stock) => ({
+    stock,
+    result: backtestStock(stock),
+  }));
+
+  // 통계 계산 (신호 발생 & 거래 완료된 건)
+  const signaled = results.filter((r) => r.result.status !== "no_signal");
+  const completed = signaled.filter(
+    (r) =>
+      r.result.status === "target" ||
+      r.result.status === "losscut" ||
+      r.result.status === "expired"
+  );
+  const wins = completed.filter((r) => r.result.status === "target");
+  const losses = completed.filter((r) => r.result.status === "losscut");
+  const returns = completed
+    .map((r) => r.result.returnPct)
+    .filter((v) => v != null);
+  const avgReturn =
+    returns.length > 0 ? returns.reduce((a, b) => a + b, 0) / returns.length : null;
+
+  document.getElementById("signal-count").textContent =
+    signaled.length + "개";
+  document.getElementById("win-count").textContent = wins.length + "개";
+  document.getElementById("win-rate").textContent =
+    completed.length > 0
+      ? ((wins.length / completed.length) * 100).toFixed(1) + "%"
+      : "—";
+  const avgEl = document.getElementById("avg-return");
+  avgEl.textContent = avgReturn != null ? fmt(avgReturn) : "—";
+  avgEl.className = "value " + (avgReturn >= 0 ? "positive" : "negative");
+  document.getElementById("losscut-rate").textContent =
+    completed.length > 0
+      ? ((losses.length / completed.length) * 100).toFixed(1) + "%"
+      : "—";
+
+  const note = document.getElementById("results-note");
+  note.textContent =
+    signaled.length > 0
+      ? `신호 ${signaled.length}건 중 완료 ${completed.length}건 · 진행중 ${
+          signaled.length - completed.length - results.filter(r=>r.result.status==='ambiguous').length
+        }건`
+      : "";
+
+  // 테이블 렌더링 (신호 없는 종목도 표시, 정렬: 매수일 → 상장일)
+  const sorted = [...results].sort((a, b) => {
+    const as = a.result.status === "no_signal" ? 1 : 0;
+    const bs = b.result.status === "no_signal" ? 1 : 0;
+    if (as !== bs) return as - bs;
+    const da = a.result.buyDate || a.stock.ipo_date;
+    const db = b.result.buyDate || b.stock.ipo_date;
+    return da < db ? -1 : da > db ? 1 : 0;
+  });
+
+  const rows = sorted.map(({ stock, result }) => buildRow(stock, result)).join("");
+  setBody(rows || '<tr><td colspan="11" class="empty">해당 조건의 결과 없음</td></tr>');
+}
+
+function buildRow(stock, r) {
+  const refLabel =
+    params.reference === "ipo_price" ? "공모가" : "시초가";
+
+  const statusBadge = {
+    target:    `<span class="badge badge-target">✅ 목표달성</span>`,
+    losscut:   `<span class="badge badge-losscut">❌ 손절</span>`,
+    expired:   `<span class="badge badge-expired">⏱ 기간만료</span>`,
+    ambiguous: `<span class="badge badge-ambig">⚠️ 요확인</span>`,
+    ongoing:   `<span class="badge badge-ongoing">📌 진행중</span>`,
+    no_signal: `<span class="badge badge-nosig">— 신호없음</span>`,
+  }[r.status] || "";
+
+  const returnCell =
+    r.returnPct != null
+      ? `<td class="num ${r.returnPct >= 0 ? "positive" : "negative"}">${fmt(r.returnPct)}</td>`
+      : `<td class="num warning">⚠️ 요확인</td>`;
+
+  return `<tr>
+    <td><strong>${esc(stock.name)}</strong></td>
+    <td><span class="market-tag">${esc(stock.market)}</span></td>
+    <td class="num">${stock.ipo_date}</td>
+    <td class="num">${r.buyDate || "—"}</td>
+    <td class="num">${r.sellDate || "—"}</td>
+    <td class="num">${r.daysHeld != null ? r.daysHeld + "일" : "—"}</td>
+    <td class="num">${fmtPrice(r.refPrice)}<br/><small style="color:var(--text-dim);font-size:10px">${refLabel}</small></td>
+    <td class="num">${fmtPrice(r.buyPrice ? Math.round(r.buyPrice) : null)}</td>
+    <td class="num">${fmtPrice(r.sellPrice)}</td>
+    ${returnCell}
+    <td>${statusBadge}</td>
+  </tr>`;
+}
+
+function esc(str) {
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function setBody(html) {
+  document.getElementById("results-body").innerHTML = html;
+}
+
+// ──────────────────────────────────────────
+document.addEventListener("DOMContentLoaded", init);
