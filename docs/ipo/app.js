@@ -28,7 +28,17 @@ async function loadData() {
     const res = await fetch("../data/ipo_data.json?ts=" + Date.now());
     if (!res.ok) throw new Error("HTTP " + res.status);
     const data = await res.json();
-    allStocks = data.stocks || [];
+    // 거래정지·결측일(OHLC에 0 포함)은 체결 불가 → 방어적으로 제거
+    allStocks = (data.stocks || []).map((s) => {
+      const prices = (s.prices || []).filter(
+        (r) => r.o > 0 && r.h > 0 && r.l > 0 && r.c > 0
+      );
+      return {
+        ...s,
+        prices,
+        listing_open: prices.length ? prices[0].o : s.listing_open,
+      };
+    }).filter((s) => s.prices.length > 0);
     document.getElementById("updated-at").textContent = data.updated_at || "—";
     document.getElementById("total-count").textContent = allStocks.length + "개";
     render();
@@ -105,12 +115,13 @@ function bindTabs(groupId, onChange) {
 
 /**
  * addMonths("2023-07-15", 3) → "2023-10-15"
- * 월 말일 초과 시 자동 조정 (JS Date 기본 동작 활용)
+ * 월 말일 초과 시 자동 조정. Date.UTC로 계산해 사용자 시간대와 무관하게
+ * 동일한 결과를 보장한다(로컬 Date + toISOString은 KST에서 하루 밀림).
  */
 function addMonths(dateStr, months) {
-  const d = new Date(dateStr + "T00:00:00");
-  d.setMonth(d.getMonth() + months);
-  return d.toISOString().slice(0, 10);
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const base = new Date(Date.UTC(y, m - 1 + months, d));
+  return base.toISOString().slice(0, 10);
 }
 
 function daysBetween(d1, d2) {

@@ -152,7 +152,9 @@ def get_prices(ticker: str, start_date: str) -> list[dict] | None:
             h = int(r.get("High", 0) or 0)
             l = int(r.get("Low", 0) or 0)
             c = int(r.get("Close", 0) or 0)
-            if o == 0 and c == 0:
+            # 거래정지·결측일은 OHLC 중 일부가 0으로 들어옴(체결 불가) → 제외.
+            # 정상 거래일은 o/h/l/c 모두 양수여야 한다.
+            if o <= 0 or h <= 0 or l <= 0 or c <= 0:
                 continue
             rows.append({"d": dt.strftime("%Y-%m-%d"), "o": o, "h": h, "l": l, "c": c})
         return rows or None
