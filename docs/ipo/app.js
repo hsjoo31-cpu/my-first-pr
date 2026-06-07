@@ -32,6 +32,7 @@ async function loadData() {
     document.getElementById("updated-at").textContent = data.updated_at || "—";
     document.getElementById("total-count").textContent = allStocks.length + "개";
     render();
+    scheduleRecommendations();
   } catch (e) {
     setBody(`<tr><td colspan="11" class="empty">데이터를 불러올 수 없습니다: ${e.message}</td></tr>`);
   }
@@ -82,6 +83,7 @@ function bindControls() {
     params.buyWindow = Math.max(0, Math.min(48, +buyWindowInput.value || 0));
     buyWindowInput.value = params.buyWindow;
     render();
+    scheduleRecommendations(); // 스크리닝 기간이 바뀌면 추천도 재탐색
   });
 }
 
@@ -131,18 +133,18 @@ function fmtPrice(n) {
  * @returns {object} result
  *   status: "no_signal" | "ongoing" | "target" | "losscut" | "expired" | "ambiguous"
  */
-function backtestStock(stock) {
+function backtestStock(stock, p = params) {
   const refPrice =
-    params.reference === "ipo_price" ? stock.ipo_price : stock.listing_open;
+    p.reference === "ipo_price" ? stock.ipo_price : stock.listing_open;
 
   if (!refPrice) return { status: "no_signal", reason: "기준가 없음" };
 
-  const buyTrigger = refPrice * (1 - params.n / 100);
+  const buyTrigger = refPrice * (1 - p.n / 100);
   const prices = stock.prices; // [{d,o,h,l,c}, ...]
 
   // 매수 기회 기간: 상장일로부터 N개월 이내에 트리거가 발생해야 후보로 인정
   const windowCutoff =
-    params.buyWindow > 0 ? addMonths(stock.ipo_date, params.buyWindow) : null;
+    p.buyWindow > 0 ? addMonths(stock.ipo_date, p.buyWindow) : null;
 
   // ── 매수일 탐색 ──
   let buyIdx = -1;
@@ -159,12 +161,12 @@ function backtestStock(stock) {
 
   const buyPrice = buyTrigger;
   const buyDate = prices[buyIdx].d;
-  const sellCalendarDate = addMonths(buyDate, params.holdingMonths);
+  const sellCalendarDate = addMonths(buyDate, p.holdingMonths);
 
   const targetSellPrice =
-    params.target > 0 ? buyPrice * (1 + params.target / 100) : Infinity;
+    p.target > 0 ? buyPrice * (1 + p.target / 100) : Infinity;
   const losscutThreshold =
-    params.losscut > 0 ? buyPrice * (1 - params.losscut / 100) : -Infinity;
+    p.losscut > 0 ? buyPrice * (1 - p.losscut / 100) : -Infinity;
 
   // ── 매수일부터 시뮬레이션 ──
   for (let i = buyIdx; i < prices.length; i++) {
@@ -189,7 +191,7 @@ function backtestStock(stock) {
     // 목표 / 손절 동시 발생 → 요확인
     const targetHit = day.h >= targetSellPrice;
     const losscutHit =
-      params.losscut > 0 && day.c <= losscutThreshold;
+      p.losscut > 0 && day.c <= losscutThreshold;
 
     if (targetHit && losscutHit) {
       return {
@@ -210,7 +212,7 @@ function backtestStock(stock) {
         buyDate,
         sellDate: day.d,
         daysHeld: daysBetween(buyDate, day.d),
-        returnPct: params.target, // 목표가에 정확히 매도
+        returnPct: p.target, // 목표가에 정확히 매도
         refPrice,
         buyPrice,
         sellPrice: Math.round(targetSellPrice),
@@ -355,6 +357,247 @@ function esc(str) {
 
 function setBody(html) {
   document.getElementById("results-body").innerHTML = html;
+}
+
+// ──────────────────────────────────────────
+// 추천 전략 — 전체 조합 그리드 서치
+// ──────────────────────────────────────────
+const GRID = {
+  reference: ["listing_open", "ipo_price"],
+  n: [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95],
+  losscut: [0, 5, 10, 15, 20, 25, 30, 40],
+  holdingMonths: [1, 2, 3],
+  target: [20, 30, 40, 50],
+};
+const MIN_COMPLETED = 10; // 목표달성률·평균수익률 추천 최소 표본(완료 거래)
+
+let recoTimer = null;
+function scheduleRecommendations() {
+  const cards = document.getElementById("reco-cards");
+  const status = document.getElementById("reco-status");
+  status.textContent = "계산 중…";
+  cards.innerHTML = '<div class="reco-card placeholder">모든 조합 탐색 중…</div>';
+  clearTimeout(recoTimer);
+  // setTimeout으로 "계산 중" 표시를 먼저 그리게 함
+  recoTimer = setTimeout(() => {
+    const t0 = performance.now();
+    const best = runGridSearch();
+    const ms = Math.round(performance.now() - t0);
+    renderRecommendations(best);
+    status.textContent = `${(GRID.reference.length * GRID.n.length * GRID.losscut.length * GRID.holdingMonths.length * GRID.target.length).toLocaleString()}개 조합 · ${ms}ms`;
+  }, 30);
+}
+
+function runGridSearch() {
+  const stocks = allStocks;
+  const buyWindow = params.buyWindow;
+  const hasIpo = stocks.some((s) => s.ipo_price);
+
+  const best = {
+    winCount: { value: -1 },
+    winRate: { value: -1 },
+    avgReturn: { value: -Infinity },
+  };
+
+  for (const reference of GRID.reference) {
+    if (reference === "ipo_price" && !hasIpo) continue;
+
+    for (const n of GRID.n) {
+      // 1) (reference, n)에 대한 매수 시점을 종목별로 1회만 계산
+      const buys = [];
+      for (let si = 0; si < stocks.length; si++) {
+        const stock = stocks[si];
+        const refPrice =
+          reference === "ipo_price" ? stock.ipo_price : stock.listing_open;
+        if (!refPrice) continue;
+        const buyTrigger = refPrice * (1 - n / 100);
+        const prices = stock.prices;
+        const windowCutoff =
+          buyWindow > 0 ? addMonths(stock.ipo_date, buyWindow) : null;
+        let buyIdx = -1;
+        for (let i = 0; i < prices.length; i++) {
+          if (windowCutoff && prices[i].d > windowCutoff) break;
+          if (prices[i].l <= buyTrigger) {
+            buyIdx = i;
+            break;
+          }
+        }
+        if (buyIdx === -1) continue;
+        buys.push({ prices, buyIdx, buyDate: prices[buyIdx].d, buyPrice: buyTrigger });
+      }
+      if (buys.length === 0) continue;
+
+      for (const holdingMonths of GRID.holdingMonths) {
+        // 2) holding별 만료 인덱스 사전 계산
+        for (let bi = 0; bi < buys.length; bi++) {
+          const b = buys[bi];
+          const sellCalendarDate = addMonths(b.buyDate, holdingMonths);
+          let expiryIdx = b.prices.length; // 못 찾으면 데이터 끝(보유중)
+          for (let i = b.buyIdx + 1; i < b.prices.length; i++) {
+            if (b.prices[i].d >= sellCalendarDate) {
+              expiryIdx = i;
+              break;
+            }
+          }
+          b.expiryIdx = expiryIdx;
+        }
+
+        for (const target of GRID.target) {
+          for (const losscut of GRID.losscut) {
+            let wins = 0,
+              completed = 0,
+              retSum = 0;
+            const signals = buys.length;
+
+            for (let bi = 0; bi < buys.length; bi++) {
+              const b = buys[bi];
+              const prices = b.prices;
+              const buyPrice = b.buyPrice;
+              const targetSellPrice = buyPrice * (1 + target / 100);
+              const losscutThreshold =
+                losscut > 0 ? buyPrice * (1 - losscut / 100) : -Infinity;
+              const end = b.expiryIdx;
+
+              let exited = false;
+              for (let i = b.buyIdx; i < end; i++) {
+                const day = prices[i];
+                const targetHit = day.h >= targetSellPrice;
+                const losscutHit = losscut > 0 && day.c <= losscutThreshold;
+                if (targetHit && losscutHit) {
+                  exited = true; // 요확인 → 완료에서 제외
+                  break;
+                }
+                if (targetHit) {
+                  wins++;
+                  completed++;
+                  retSum += target;
+                  exited = true;
+                  break;
+                }
+                if (losscutHit) {
+                  completed++;
+                  retSum += ((day.c - buyPrice) / buyPrice) * 100;
+                  exited = true;
+                  break;
+                }
+              }
+              if (!exited) {
+                // 만료일 도달 → 다음 거래일(=expiryIdx) 시초가 매도
+                if (end < prices.length) {
+                  completed++;
+                  retSum += ((prices[end].o - buyPrice) / buyPrice) * 100;
+                }
+                // end == prices.length 이면 아직 보유중(완료 아님)
+              }
+            }
+
+            const winRate = completed > 0 ? (wins / completed) * 100 : 0;
+            const avgReturn = completed > 0 ? retSum / completed : null;
+            const combo = {
+              reference, n, losscut, holdingMonths, target,
+              signals, wins, completed, winRate, avgReturn,
+            };
+
+            if (
+              wins > best.winCount.value ||
+              (wins === best.winCount.value && winRate > (best.winCount.winRate ?? -1))
+            ) {
+              best.winCount = { value: wins, ...combo };
+            }
+            if (completed >= MIN_COMPLETED && winRate > best.winRate.value) {
+              best.winRate = { value: winRate, ...combo };
+            }
+            if (
+              completed >= MIN_COMPLETED &&
+              avgReturn != null &&
+              avgReturn > best.avgReturn.value
+            ) {
+              best.avgReturn = { value: avgReturn, ...combo };
+            }
+          }
+        }
+      }
+    }
+  }
+  return best;
+}
+
+function refLabelOf(ref) {
+  return ref === "ipo_price" ? "공모가" : "시초가";
+}
+
+function recoCard(title, headline, combo, valid) {
+  if (!valid || !combo || combo.value < 0) {
+    return `<div class="reco-card">
+      <div class="reco-metric">${title}</div>
+      <div class="reco-headline">—</div>
+      <div class="reco-note">표본 부족 (완료 거래 ${MIN_COMPLETED}건 미만)</div>
+    </div>`;
+  }
+  const lossLabel = combo.losscut > 0 ? `-${combo.losscut}%` : "없음";
+  return `<div class="reco-card">
+    <div class="reco-metric">${title}</div>
+    <div class="reco-headline">${headline}</div>
+    <div class="reco-params">
+      <span class="reco-chip"><b>기준가</b>${refLabelOf(combo.reference)}</span>
+      <span class="reco-chip"><b>매수하락률</b>-${combo.n}%</span>
+      <span class="reco-chip"><b>손절</b>${lossLabel}</span>
+      <span class="reco-chip"><b>보유</b>${combo.holdingMonths}개월</span>
+      <span class="reco-chip"><b>목표</b>+${combo.target}%</span>
+    </div>
+    <div class="reco-note">신호 ${combo.signals}건 · 완료 ${combo.completed}건 · 달성 ${combo.wins}건</div>
+    <button class="reco-apply" data-strategy='${JSON.stringify({
+      reference: combo.reference, n: combo.n, losscut: combo.losscut,
+      holdingMonths: combo.holdingMonths, target: combo.target,
+    })}'>이 설정 적용</button>
+  </div>`;
+}
+
+function renderRecommendations(best) {
+  const cards = document.getElementById("reco-cards");
+  const wc = best.winCount;
+  const wr = best.winRate;
+  const ar = best.avgReturn;
+
+  cards.innerHTML =
+    recoCard("🎯 목표달성 최다", wc.value >= 0 ? `${wc.wins}개 달성` : "—", wc, wc.value >= 0) +
+    recoCard("📊 목표달성률 최고", wr.value >= 0 ? `${wr.winRate.toFixed(1)}%` : "—", wr, wr.value >= 0) +
+    recoCard("💰 평균 수익률 최고", ar.value > -Infinity ? fmt(ar.avgReturn) : "—", ar, ar.value > -Infinity);
+
+  // "이 설정 적용" 버튼 바인딩
+  cards.querySelectorAll(".reco-apply").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      applyStrategy(JSON.parse(btn.dataset.strategy));
+    });
+  });
+}
+
+function applyStrategy(s) {
+  params.reference = s.reference;
+  params.n = s.n;
+  params.losscut = s.losscut;
+  params.holdingMonths = s.holdingMonths;
+  params.target = s.target;
+
+  // UI 컨트롤 동기화
+  setTabActive("ref-tabs", s.reference);
+  setTabActive("holding-tabs", String(s.holdingMonths));
+  setTabActive("target-tabs", String(s.target));
+  const slider = document.getElementById("n-slider");
+  slider.value = s.n;
+  document.getElementById("n-val").textContent = s.n;
+  document.getElementById("losscut-input").value = s.losscut;
+
+  render();
+  // 화면 상단(컨트롤)로 부드럽게 스크롤
+  document.querySelector(".controls").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function setTabActive(groupId, value) {
+  const group = document.getElementById(groupId);
+  group.querySelectorAll(".tab").forEach((b) => {
+    b.classList.toggle("active", b.dataset.value === value);
+  });
 }
 
 // ──────────────────────────────────────────
