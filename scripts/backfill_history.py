@@ -10,10 +10,10 @@
 import os
 import json
 import time
+import socket
 import warnings
 import pandas as pd
 import requests
-import yfinance as yf
 import FinanceDataReader as fdr
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta, timezone
@@ -21,14 +21,17 @@ from dateutil.relativedelta import relativedelta
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 warnings.filterwarnings("ignore")
+# FDR 네이버 내부 requests에 timeout이 없어 행이 걸릴 수 있음 → 전역 소켓 타임아웃
+socket.setdefaulttimeout(15)
 
 # ── 설정 ─────────────────────────────────────────────────
+# 가격 데이터: FinanceDataReader(네이버 일봉) = KRX 정규장 기준(NXT 미포함).
 START_MONTH = "2020-01"
 MARKET_CAP_MIN = 300_000_000_000
 TOP_N = 100
 REPORT_MIN = 2
 REPORT_WINDOW_DAYS = 91
-YF_BATCH = 100
+PRICE_WORKERS = 8
 NAVER_WORKERS = 8
 NAVER_TIMEOUT = 10
 NAVER_MAX_PAGES = 50
@@ -47,30 +50,27 @@ HEADERS = {
 KST = timezone(timedelta(hours=9))
 
 
-def yf_suffix(market_id):
-    return ".KS" if market_id == "STK" else ".KQ"
-
-
-def fetch_close_panel(yf_tickers, start, end):
-    panels = []
-    n_batches = (len(yf_tickers) - 1) // YF_BATCH + 1
-    for i in range(0, len(yf_tickers), YF_BATCH):
-        batch = yf_tickers[i:i + YF_BATCH]
+def fetch_close_panel(codes, start, end):
+    """FinanceDataReader(네이버 일봉, KRX 정규장 기준)로 종가 패널 구성.
+    네이버는 동시요청 시 스로틀링/행이 발생할 수 있어 순차 수집한다.
+    (전역 socket timeout으로 개별 요청 행을 방지)"""
+    closes = {}
+    total = len(codes)
+    for i, code in enumerate(codes):
         try:
-            data = yf.download(
-                batch, start=start, end=end,
-                progress=False, auto_adjust=True, threads=True,
-                group_by="ticker",
-            )
-            if "Close" in data.columns.get_level_values(0):
-                close = data["Close"]
-            else:
-                close = data.xs("Close", level=1, axis=1)
-            panels.append(close)
-            print(f"  yf batch {i // YF_BATCH + 1}/{n_batches}", flush=True)
-        except Exception as e:
-            print(f"  yf batch failed: {e}", flush=True)
-    return pd.concat(panels, axis=1) if panels else pd.DataFrame()
+            df = fdr.DataReader(code, start, end)
+            if df is not None and not df.empty and "Close" in df.columns:
+                closes[code] = df["Close"]
+        except Exception:
+            pass
+        if (i + 1) % 100 == 0 or (i + 1) == total:
+            print(f"  prices {i + 1}/{total}", flush=True)
+        time.sleep(0.1)
+    if not closes:
+        return pd.DataFrame()
+    panel = pd.DataFrame(closes)
+    panel.sort_index(inplace=True)
+    return panel
 
 
 def crawl_naver_dates(ticker, until_date):
@@ -120,7 +120,6 @@ def main():
     listing = fdr.StockListing("KRX")
     listing = listing[listing["MarketId"].isin(["STK", "KSQ"])]
     universe = listing[listing["Marcap"] >= MARKET_CAP_MIN].copy()
-    universe["yf_ticker"] = universe["Code"] + universe["MarketId"].apply(yf_suffix)
     universe_lookup = universe.set_index("Code")
     print(f"  → {len(universe)}개 종목\n", flush=True)
 
@@ -142,9 +141,8 @@ def main():
         fetch_start = fetch_start_dt.strftime("%Y-%m-%d")
         fetch_end = today.strftime("%Y-%m-%d")
         prices = fetch_close_panel(
-            universe["yf_ticker"].tolist(), fetch_start, fetch_end,
+            universe["Code"].tolist(), fetch_start, fetch_end,
         )
-        prices.columns = [c.split(".")[0] for c in prices.columns]
         prices = prices.loc[:, ~prices.columns.duplicated()]
         prices = prices.dropna(how="all").ffill(limit=5)
         prices.to_parquet(PRICE_CACHE)
