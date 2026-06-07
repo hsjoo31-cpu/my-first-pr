@@ -7,12 +7,15 @@
 결과: docs/data/ipo_data.json
 """
 
-import io, json, time, re, requests
+import io, json, time, re, socket, requests
 import pandas as pd
 import FinanceDataReader as fdr
 from datetime import datetime
 from pathlib import Path
 from bs4 import BeautifulSoup
+
+# FDR 네이버 내부 requests에 timeout이 없어 CI에서 행이 걸릴 수 있음 → 전역 소켓 타임아웃
+socket.setdefaulttimeout(15)
 
 IPO_START = "2023-06-26"
 OUT = Path("docs/data/ipo_data.json")
