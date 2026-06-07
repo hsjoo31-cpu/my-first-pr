@@ -12,7 +12,7 @@
     "report_min": 2
   },
   "universe_size": 727,
-  "passed_count": 56,
+  "passed_count": 57,
   "stocks": [
     {
       "rank": 1,
@@ -64,7 +64,7 @@
       "ticker": "000660",
       "name": "SK하이닉스",
       "market": "KOSPI",
-      "return_pct": 81.45,
+      "return_pct": 81.42,
       "marcap_eok": 14752939,
       "report_count": 30
     },
@@ -163,7 +163,7 @@
       "ticker": "402340",
       "name": "SK스퀘어",
       "market": "KOSPI",
-      "return_pct": 46.8,
+      "return_pct": 46.61,
       "marcap_eok": 1660036,
       "report_count": 6
     },
@@ -217,12 +217,21 @@
       "ticker": "005380",
       "name": "현대차",
       "market": "KOSPI",
-      "return_pct": 36.66,
+      "return_pct": 36.16,
       "marcap_eok": 1433304,
       "report_count": 20
     },
     {
       "rank": 24,
+      "ticker": "356860",
+      "name": "티엘비",
+      "market": "KOSDAQ",
+      "return_pct": 35.96,
+      "marcap_eok": 10491,
+      "report_count": 6
+    },
+    {
+      "rank": 25,
       "ticker": "222800",
       "name": "심텍",
       "market": "KOSDAQ GLOBAL",
@@ -231,7 +240,7 @@
       "report_count": 8
     },
     {
-      "rank": 25,
+      "rank": 26,
       "ticker": "018880",
       "name": "한온시스템",
       "market": "KOSPI",
@@ -240,7 +249,7 @@
       "report_count": 9
     },
     {
-      "rank": 26,
+      "rank": 27,
       "ticker": "009420",
       "name": "한올바이오파마",
       "market": "KOSPI",
@@ -249,7 +258,7 @@
       "report_count": 9
     },
     {
-      "rank": 27,
+      "rank": 28,
       "ticker": "034220",
       "name": "LG디스플레이",
       "market": "KOSPI",
@@ -258,22 +267,13 @@
       "report_count": 5
     },
     {
-      "rank": 28,
+      "rank": 29,
       "ticker": "178320",
       "name": "서진시스템",
       "market": "KOSDAQ",
       "return_pct": 30.42,
       "marcap_eok": 44606,
       "report_count": 4
-    },
-    {
-      "rank": 29,
-      "ticker": "356860",
-      "name": "티엘비",
-      "market": "KOSDAQ",
-      "return_pct": 28.91,
-      "marcap_eok": 10491,
-      "report_count": 6
     },
     {
       "rank": 30,
@@ -286,21 +286,21 @@
     },
     {
       "rank": 31,
-      "ticker": "183300",
-      "name": "코미코",
-      "market": "KOSDAQ GLOBAL",
-      "return_pct": 27.12,
-      "marcap_eok": 11360,
-      "report_count": 4
-    },
-    {
-      "rank": 32,
       "ticker": "004170",
       "name": "신세계",
       "market": "KOSPI",
-      "return_pct": 26.85,
+      "return_pct": 26.54,
       "marcap_eok": 61394,
       "report_count": 15
+    },
+    {
+      "rank": 32,
+      "ticker": "183300",
+      "name": "코미코",
+      "market": "KOSDAQ GLOBAL",
+      "return_pct": 24.79,
+      "marcap_eok": 11360,
+      "report_count": 4
     },
     {
       "rank": 33,
@@ -316,7 +316,7 @@
       "ticker": "000150",
       "name": "두산",
       "market": "KOSPI",
-      "return_pct": 23.63,
+      "return_pct": 23.56,
       "marcap_eok": 281773,
       "report_count": 13
     },
@@ -517,6 +517,15 @@
       "return_pct": 8.97,
       "marcap_eok": 28232,
       "report_count": 10
+    },
+    {
+      "rank": 57,
+      "ticker": "204320",
+      "name": "HL만도",
+      "market": "KOSPI",
+      "return_pct": 8.76,
+      "marcap_eok": 25920,
+      "report_count": 11
     }
   ]
 }
