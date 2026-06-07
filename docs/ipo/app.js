@@ -375,12 +375,13 @@ function setBody(html) {
 // ──────────────────────────────────────────
 const GRID = {
   reference: ["listing_open", "ipo_price"],
-  n: [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95],
-  losscut: [0, 5, 10, 15, 20, 25, 30, 40],
+  n: Array.from({ length: 100 }, (_, i) => i),      // 0 ~ 99 (1% 단위)
+  losscut: Array.from({ length: 51 }, (_, i) => i), // 0 ~ 50 (1% 단위)
   holdingMonths: [1, 2, 3],
   target: [20, 30, 40, 50],
 };
 const MIN_COMPLETED = 10; // 목표달성률·평균수익률 추천 최소 표본(완료 거래)
+const TIE_EPS = 1e-9;
 
 let recoTimer = null;
 function scheduleRecommendations() {
@@ -393,6 +394,7 @@ function scheduleRecommendations() {
   recoTimer = setTimeout(() => {
     const t0 = performance.now();
     const best = runGridSearch();
+    attachTieRanges(best); // 동률 범위(손절·하락률) 1D 스윕
     const ms = Math.round(performance.now() - t0);
     renderRecommendations(best);
     status.textContent = `${(GRID.reference.length * GRID.n.length * GRID.losscut.length * GRID.holdingMonths.length * GRID.target.length).toLocaleString()}개 조합 · ${ms}ms`;
@@ -405,9 +407,19 @@ function runGridSearch() {
   const hasIpo = stocks.some((s) => s.ipo_price);
 
   const best = {
-    winCount: { value: -1 },
-    winRate: { value: -1 },
-    avgReturn: { value: -Infinity },
+    winCount: { value: -1, count: 0, combo: null },
+    winRate: { value: -1, count: 0, combo: null },
+    avgReturn: { value: -Infinity, count: 0, combo: null },
+  };
+  // 동률 집계: 새 최대면 교체+count=1, 동률이면 count++
+  const consider = (slot, value, combo) => {
+    if (value > slot.value + TIE_EPS) {
+      slot.value = value;
+      slot.count = 1;
+      slot.combo = combo;
+    } else if (Math.abs(value - slot.value) <= TIE_EPS) {
+      slot.count++;
+    }
   };
 
   for (const reference of GRID.reference) {
@@ -509,21 +521,10 @@ function runGridSearch() {
               signals, wins, completed, winRate, avgReturn,
             };
 
-            if (
-              wins > best.winCount.value ||
-              (wins === best.winCount.value && winRate > (best.winCount.winRate ?? -1))
-            ) {
-              best.winCount = { value: wins, ...combo };
-            }
-            if (completed >= MIN_COMPLETED && winRate > best.winRate.value) {
-              best.winRate = { value: winRate, ...combo };
-            }
-            if (
-              completed >= MIN_COMPLETED &&
-              avgReturn != null &&
-              avgReturn > best.avgReturn.value
-            ) {
-              best.avgReturn = { value: avgReturn, ...combo };
+            consider(best.winCount, wins, combo);
+            if (completed >= MIN_COMPLETED) {
+              consider(best.winRate, winRate, combo);
+              if (avgReturn != null) consider(best.avgReturn, avgReturn, combo);
             }
           }
         }
@@ -537,29 +538,118 @@ function refLabelOf(ref) {
   return ref === "ipo_price" ? "공모가" : "시초가";
 }
 
-function recoCard(title, headline, combo, valid) {
-  if (!valid || !combo || combo.value < 0) {
+// 단일 조합 전체 지표 (동률 범위 1D 스윕에 사용)
+function evalCombo(p) {
+  let wins = 0, completed = 0, retSum = 0, signals = 0;
+  for (const s of allStocks) {
+    const r = backtestStock(s, p);
+    if (r.status === "no_signal") continue;
+    signals++;
+    if (r.status === "target") { wins++; completed++; retSum += r.returnPct; }
+    else if (r.status === "losscut" || r.status === "expired") { completed++; retSum += r.returnPct; }
+  }
+  return {
+    signals, completed, wins,
+    winRate: completed ? (wins / completed) * 100 : 0,
+    avgReturn: completed ? retSum / completed : null,
+  };
+}
+
+function metricOf(m, key) {
+  if (key === "winCount") return m.wins;
+  if (key === "winRate") return m.completed >= MIN_COMPLETED ? m.winRate : null;
+  return m.completed >= MIN_COMPLETED ? m.avgReturn : null; // avgReturn
+}
+
+// matches(정렬 가정 X)에서 repVal을 포함하는 연속 구간 [lo, hi]
+function contiguousAround(matchSet, repVal) {
+  let lo = repVal, hi = repVal;
+  while (matchSet.has(lo - 1)) lo--;
+  while (matchSet.has(hi + 1)) hi++;
+  return [lo, hi];
+}
+
+// 각 지표 최적 조합에 대해 손절·하락률 동률 범위를 1D 스윕으로 계산
+function attachTieRanges(best) {
+  for (const key of ["winCount", "winRate", "avgReturn"]) {
+    const slot = best[key];
+    if (!slot.combo) continue;
+    const c = slot.combo;
+    const target = slot.value;
+    const bw = params.buyWindow;
+
+    // 손절 스윕 0..50
+    const lossSet = new Set();
+    for (let lc = 0; lc <= 50; lc++) {
+      const v = metricOf(
+        evalCombo({ reference: c.reference, n: c.n, losscut: lc, holdingMonths: c.holdingMonths, target: c.target, buyWindow: bw }),
+        key
+      );
+      if (v != null && Math.abs(v - target) <= TIE_EPS) lossSet.add(lc);
+    }
+    slot.lossRange = contiguousAround(lossSet, c.losscut);
+
+    // 하락률 스윕 0..99
+    const nSet = new Set();
+    for (let nn = 0; nn <= 99; nn++) {
+      const v = metricOf(
+        evalCombo({ reference: c.reference, n: nn, losscut: c.losscut, holdingMonths: c.holdingMonths, target: c.target, buyWindow: bw }),
+        key
+      );
+      if (v != null && Math.abs(v - target) <= TIE_EPS) nSet.add(nn);
+    }
+    slot.nRange = contiguousAround(nSet, c.n);
+  }
+}
+
+function rangeLabel(prefix, lo, hi, kind) {
+  if (lo === hi) return null; // 단일값 → 범위 아님
+  const f = kind === "loss"
+    ? (v) => (v === 0 ? "없음" : `-${v}%`)
+    : (v) => `-${v}%`;
+  return `${prefix} ${f(lo)}~${f(hi)} 동일`;
+}
+
+function recoCard(title, headline, slot) {
+  if (!slot || !slot.combo) {
     return `<div class="reco-card">
       <div class="reco-metric">${title}</div>
       <div class="reco-headline">—</div>
       <div class="reco-note">표본 부족 (완료 거래 ${MIN_COMPLETED}건 미만)</div>
     </div>`;
   }
-  const lossLabel = combo.losscut > 0 ? `-${combo.losscut}%` : "없음";
+  const c = slot.combo;
+  const lossLabel = c.losscut > 0 ? `-${c.losscut}%` : "없음";
+
+  const tieLines = [];
+  if (slot.lossRange) {
+    const l = rangeLabel("손절", slot.lossRange[0], slot.lossRange[1], "loss");
+    if (l) tieLines.push(l);
+  }
+  if (slot.nRange) {
+    const l = rangeLabel("하락률", slot.nRange[0], slot.nRange[1], "n");
+    if (l) tieLines.push(l);
+  }
+  const tieHtml = `<div class="reco-tie">
+      <span class="reco-tie-count">${slot.count > 1 ? `동률 ${slot.count}개` : "유일 최적"}</span>
+      ${tieLines.map((t) => `<span class="reco-tie-range">· ${t}</span>`).join("")}
+    </div>`;
+
   return `<div class="reco-card">
     <div class="reco-metric">${title}</div>
     <div class="reco-headline">${headline}</div>
     <div class="reco-params">
-      <span class="reco-chip"><b>기준가</b>${refLabelOf(combo.reference)}</span>
-      <span class="reco-chip"><b>매수하락률</b>-${combo.n}%</span>
+      <span class="reco-chip"><b>기준가</b>${refLabelOf(c.reference)}</span>
+      <span class="reco-chip"><b>매수하락률</b>-${c.n}%</span>
       <span class="reco-chip"><b>손절</b>${lossLabel}</span>
-      <span class="reco-chip"><b>보유</b>${combo.holdingMonths}개월</span>
-      <span class="reco-chip"><b>목표</b>+${combo.target}%</span>
+      <span class="reco-chip"><b>보유</b>${c.holdingMonths}개월</span>
+      <span class="reco-chip"><b>목표</b>+${c.target}%</span>
     </div>
-    <div class="reco-note">신호 ${combo.signals}건 · 완료 ${combo.completed}건 · 달성 ${combo.wins}건</div>
+    ${tieHtml}
+    <div class="reco-note">신호 ${c.signals}건 · 완료 ${c.completed}건 · 달성 ${c.wins}건</div>
     <button class="reco-apply" data-strategy='${JSON.stringify({
-      reference: combo.reference, n: combo.n, losscut: combo.losscut,
-      holdingMonths: combo.holdingMonths, target: combo.target,
+      reference: c.reference, n: c.n, losscut: c.losscut,
+      holdingMonths: c.holdingMonths, target: c.target,
     })}'>이 설정 적용</button>
   </div>`;
 }
@@ -571,9 +661,9 @@ function renderRecommendations(best) {
   const ar = best.avgReturn;
 
   cards.innerHTML =
-    recoCard("🎯 목표달성 최다", wc.value >= 0 ? `${wc.wins}개 달성` : "—", wc, wc.value >= 0) +
-    recoCard("📊 목표달성률 최고", wr.value >= 0 ? `${wr.winRate.toFixed(1)}%` : "—", wr, wr.value >= 0) +
-    recoCard("💰 평균 수익률 최고", ar.value > -Infinity ? fmt(ar.avgReturn) : "—", ar, ar.value > -Infinity);
+    recoCard("🎯 목표달성 최다", wc.combo ? `${wc.combo.wins}개 달성` : "—", wc) +
+    recoCard("📊 목표달성률 최고", wr.combo ? `${wr.combo.winRate.toFixed(1)}%` : "—", wr) +
+    recoCard("💰 평균 수익률 최고", ar.combo ? fmt(ar.combo.avgReturn) : "—", ar);
 
   // "이 설정 적용" 버튼 바인딩
   cards.querySelectorAll(".reco-apply").forEach((btn) => {

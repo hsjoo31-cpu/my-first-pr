@@ -246,6 +246,18 @@ input[type="number"]:focus { outline: 2px solid var(--accent); }
   font-weight: 500;
 }
 .reco-note { font-size: 11px; color: var(--text-dim); }
+.reco-tie {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  font-size: 11px;
+  align-items: baseline;
+}
+.reco-tie-count {
+  font-weight: 700;
+  color: var(--warning);
+}
+.reco-tie-range { color: var(--text-dim); }
 .reco-apply {
   margin-top: 2px;
   background: var(--accent-dim);
