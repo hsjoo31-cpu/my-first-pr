@@ -375,11 +375,12 @@ function setBody(html) {
 // ──────────────────────────────────────────
 const GRID = {
   reference: ["listing_open", "ipo_price"],
-  n: Array.from({ length: 100 }, (_, i) => i),      // 0 ~ 99 (1% 단위)
+  n: Array.from({ length: 21 }, (_, i) => i * 5),   // 0 ~ 100 (5% 단위, 슬라이더와 일치)
   losscut: Array.from({ length: 51 }, (_, i) => i), // 0 ~ 50 (1% 단위)
   holdingMonths: [1, 2, 3],
   target: [20, 30, 40, 50],
 };
+const N_STEP = 5; // 매수 하락률 단위(슬라이더·그리드 공통)
 const MIN_COMPLETED = 10; // 목표달성률·평균수익률 추천 최소 표본(완료 거래)
 const TIE_EPS = 1e-9;
 
@@ -562,10 +563,10 @@ function metricOf(m, key) {
 }
 
 // matches(정렬 가정 X)에서 repVal을 포함하는 연속 구간 [lo, hi]
-function contiguousAround(matchSet, repVal) {
+function contiguousAround(matchSet, repVal, step = 1) {
   let lo = repVal, hi = repVal;
-  while (matchSet.has(lo - 1)) lo--;
-  while (matchSet.has(hi + 1)) hi++;
+  while (matchSet.has(lo - step)) lo -= step;
+  while (matchSet.has(hi + step)) hi += step;
   return [lo, hi];
 }
 
@@ -589,16 +590,16 @@ function attachTieRanges(best) {
     }
     slot.lossRange = contiguousAround(lossSet, c.losscut);
 
-    // 하락률 스윕 0..99
+    // 하락률 스윕 0..100 (5% 단위, 슬라이더와 일치)
     const nSet = new Set();
-    for (let nn = 0; nn <= 99; nn++) {
+    for (let nn = 0; nn <= 100; nn += N_STEP) {
       const v = metricOf(
         evalCombo({ reference: c.reference, n: nn, losscut: c.losscut, holdingMonths: c.holdingMonths, target: c.target, buyWindow: bw }),
         key
       );
       if (v != null && Math.abs(v - target) <= TIE_EPS) nSet.add(nn);
     }
-    slot.nRange = contiguousAround(nSet, c.n);
+    slot.nRange = contiguousAround(nSet, c.n, N_STEP);
   }
 }
 
