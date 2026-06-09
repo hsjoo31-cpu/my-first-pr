@@ -552,6 +552,28 @@ function evalCombo(p) {
   };
 }
 
+// 해당 전략으로 매매했을 때 '동시에 보유한 최대 종목 수'(peak)
+// 각 종목의 보유구간 [매수일, 매도일](진행중이면 데이터 끝)의 최대 겹침
+function peakConcurrentHoldings(p) {
+  const intervals = [];
+  for (const s of allStocks) {
+    const r = backtestStock(s, p);
+    if (r.status === "no_signal" || !r.buyDate) continue;
+    const sell = r.sellDate || s.prices[s.prices.length - 1].d; // 진행중 → 데이터 끝까지 보유
+    intervals.push([r.buyDate, sell]);
+  }
+  // peak은 어떤 매수일에서 발생 → 각 매수일에 열려있는 포지션 수의 최대
+  let peak = 0;
+  for (const [b0] of intervals) {
+    let cnt = 0;
+    for (const [b, s] of intervals) {
+      if (b <= b0 && b0 <= s) cnt++;
+    }
+    if (cnt > peak) peak = cnt;
+  }
+  return peak;
+}
+
 // matches(정렬 가정 X)에서 repVal을 포함하는 연속 구간 [lo, hi]
 function contiguousAround(matchSet, repVal, step = 1) {
   let lo = repVal, hi = repVal;
@@ -577,6 +599,12 @@ function attachTieRanges(list) {
       }
     }
     c.lossRange = contiguousAround(lossSet, c.losscut, LC_STEP);
+
+    // 참고 통계: 이 전략으로 동시에 보유한 최대 종목 수
+    c.peakHoldings = peakConcurrentHoldings({
+      reference: c.reference, n: c.n, losscut: c.losscut,
+      holdingMonths: c.holdingMonths, target: c.target, buyWindow: bw,
+    });
   }
 }
 
@@ -612,7 +640,7 @@ function recoCard(rank, c) {
       <span class="reco-chip"><b>목표</b>+${c.target}%</span>
     </div>
     ${tieHtml}
-    <div class="reco-note">신호 ${c.signals}건 · 완료 ${c.completed}건 · 달성 ${c.wins}건</div>
+    <div class="reco-note">신호 ${c.signals}건 · 완료 ${c.completed}건 · 달성 ${c.wins}건 · 동시 최대보유 ${c.peakHoldings}종목</div>
     <button class="reco-apply" data-strategy='${JSON.stringify({
       reference: c.reference, n: c.n, losscut: c.losscut,
       holdingMonths: c.holdingMonths, target: c.target,
