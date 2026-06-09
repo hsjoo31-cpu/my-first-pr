@@ -70,7 +70,9 @@ function bindControls() {
   // 손절 기준
   const losscutInput = document.getElementById("losscut-input");
   losscutInput.addEventListener("change", () => {
-    params.losscut = Math.max(0, Math.min(50, +losscutInput.value || 0));
+    // 5% 단위로 반올림 후 0~50 클램프
+    const v = Math.round((+losscutInput.value || 0) / LC_STEP) * LC_STEP;
+    params.losscut = Math.max(0, Math.min(50, v));
     losscutInput.value = params.losscut;
     render();
   });
@@ -375,12 +377,13 @@ function setBody(html) {
 // ──────────────────────────────────────────
 const GRID = {
   reference: ["listing_open", "ipo_price"],
-  n: Array.from({ length: 21 }, (_, i) => i * 5),   // 0 ~ 100 (5% 단위, 슬라이더와 일치)
-  losscut: Array.from({ length: 51 }, (_, i) => i), // 0 ~ 50 (1% 단위)
+  n: Array.from({ length: 21 }, (_, i) => i * 5),       // 0 ~ 100 (5% 단위)
+  losscut: Array.from({ length: 11 }, (_, i) => i * 5), // 0 ~ 50 (5% 단위)
   holdingMonths: [1, 2, 3],
   target: [20, 30, 40, 50],
 };
-const N_STEP = 5; // 매수 하락률 단위(슬라이더·그리드 공통)
+const N_STEP = 5;  // 매수 하락률 단위(슬라이더·그리드 공통)
+const LC_STEP = 5; // 손절 기준 단위(입력란·그리드 공통)
 const MIN_COMPLETED = 10; // 목표달성률·평균수익률 추천 최소 표본(완료 거래)
 const TIE_EPS = 1e-9;
 
@@ -563,7 +566,7 @@ function attachTieRanges(list) {
   for (const c of list) {
     const targetAvg = c.avgReturn;
     const lossSet = new Set();
-    for (let lc = 0; lc <= 50; lc++) {
+    for (let lc = 0; lc <= 50; lc += LC_STEP) {
       const m = evalCombo({
         reference: c.reference, n: c.n, losscut: lc,
         holdingMonths: c.holdingMonths, target: c.target, buyWindow: bw,
@@ -573,7 +576,7 @@ function attachTieRanges(list) {
         lossSet.add(lc);
       }
     }
-    c.lossRange = contiguousAround(lossSet, c.losscut, 1);
+    c.lossRange = contiguousAround(lossSet, c.losscut, LC_STEP);
   }
 }
 
