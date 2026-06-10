@@ -16,6 +16,11 @@
 //     - 둘 다 안 나오면 그날은 미진입. 하루 최대 1회.
 //  4) 청산: TP/SL 각각 ±0.5%. 둘 다 안 닿으면 당일 NY 자정 직전봉(23:55) 종가에 청산.
 //
+// 거래 횟수 축소 필터(입력값으로 on/off):
+//  · 필터①: 이른 시간창만 진입 — 돌파가 NY 마감시각(기본 12시) 이전일 때만.
+//  · 필터②: 상위 추세 정렬 — 돌파 방향이 상위TF(기본 4h) EMA 방향과 일치할 때만.
+//    (롱은 종가>EMA, 숏은 종가<EMA). 역추세 대배팅 제거 목적.
+//
 // process_orders_on_close=true → 진입/EOD청산이 '봉 종가'에 체결되어 규칙과 일치.
 //   ⚠️ 청산(liquidation) 미모델링. TP/SL ±0.5% 대비 왕복 수수료(기본 0.12%)가
 //      작지 않으니 결과 해석 시 감안하세요.
@@ -32,6 +37,15 @@ tz      = input.string("America/New_York", "타임존")
 orStartH = input.int(9, "OR 시작 시(時)", minval=0, maxval=23)
 orStartM = input.int(0, "OR 시작 분(分)", minval=0, maxval=55, step=5)
 orBars   = input.int(6, "OR 봉 개수(5m)", minval=1)
+
+// 필터 ①: 이른 시간창만 진입 (NY 기준 hourLimit 시(時) 이전 돌파만)
+useTimeWin = input.bool(true, "필터1: 이른 시간창만 진입", group="필터")
+winEndH    = input.int(12, "  진입 마감 시(時, NY)", minval=0, maxval=23, group="필터")
+
+// 필터 ②: 상위 추세 정렬 (돌파 방향이 상위TF EMA 방향과 일치해야 진입)
+useTrend = input.bool(true, "필터2: 상위 추세 정렬", group="필터")
+trendTf  = input.timeframe("240", "  추세 타임프레임(예 240=4h, D=일)", group="필터")
+trendLen = input.int(50, "  추세 EMA 길이", group="필터")
 
 // ── 시간 정보 (NY) ──
 h   = hour(time, tz)
@@ -69,10 +83,19 @@ else if inOR
 if orEndBar
     bias := close > orOpen ? 1 : close < orOpen ? -1 : 0
 
+// ── 필터 평가 ──
+// 필터①: 현재 봉이 NY 진입 마감 시각 이전인가
+timeOK = not useTimeWin or (h < winEndH)
+// 필터②: 상위 추세 EMA 방향 (미래참조 없이 직전 확정값 사용)
+trendEma = request.security(syminfo.tickerid, trendTf, ta.ema(close, trendLen),
+     lookahead=barmerge.lookahead_off)
+trendUp   = close > trendEma
+trendDown = close < trendEma
+
 // ── 진입 (돌파 종가) ──
-canEnter = afterOR and not traded and strategy.position_size == 0 and not na(orHigh)
-longBreak  = canEnter and bias ==  1 and close > orHigh
-shortBreak = canEnter and bias == -1 and close < orLow
+canEnter = afterOR and not traded and strategy.position_size == 0 and not na(orHigh) and timeOK
+longBreak  = canEnter and bias ==  1 and close > orHigh and (not useTrend or trendUp)
+shortBreak = canEnter and bias == -1 and close < orLow  and (not useTrend or trendDown)
 
 if longBreak
     traded := true
