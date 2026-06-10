@@ -1,4 +1,5 @@
-let HISTORY = [];
+let HISTORY = [];   // 원본(측정월 기준) — 대시보드/퍼포먼스 집계에 사용
+let HOLDING = [];   // 보유(투자)월 기준으로 재구성한 엔트리 — 상단 뷰에 사용
 let YEAR_CHART = null;
 let MONTH_CHART = null;
 
@@ -13,8 +14,9 @@ async function load() {
 
     if (history.length > 0) {
       HISTORY = history;
-      buildMonthSelector(history);
-      renderMonth(history[0].target_month);
+      buildHolding(history);
+      buildMonthSelector(HOLDING);
+      renderEntry(HOLDING[0]);
       buildDashboard(history);
       buildPerfAnalysis(history);
     } else {
@@ -23,20 +25,49 @@ async function load() {
       const data = await res.json();
       const ym = data.target_month || (data.period && data.period.end ? data.period.end.slice(0, 7) : "current");
       HISTORY = [{ ...data, target_month: ym }];
-      buildMonthSelector(HISTORY);
-      renderEntry(HISTORY[0]);
+      buildHolding(HISTORY);
+      buildMonthSelector(HOLDING);
+      renderEntry(HOLDING[0]);
     }
   } catch (e) {
     tbody.innerHTML = `<tr><td colspan="8" class="empty">데이터를 불러올 수 없습니다: ${e.message}</td></tr>`;
   }
 }
 
-function buildMonthSelector(history) {
+// ym("2026-04") + 1개월 → "2026-05"
+function addMonthYM(ym) {
+  let [y, m] = ym.split("-").map(Number);
+  m += 1;
+  if (m > 12) { m = 1; y += 1; }
+  return `${y}-${String(m).padStart(2, "0")}`;
+}
+
+// 측정월 기준 history → 보유(투자)월 기준 엔트리로 변환.
+// 측정월 M의 종목은 다음 달(M+1)에 보유하므로, 보유월 = M+1.
+// 보유월의 수익률 = 측정월 M의 forward_returns.
+function buildHolding(history) {
+  HOLDING = history.map(e => {
+    const fr = e.forward_returns;
+    const holding_month = (fr && fr.next_month) ? fr.next_month : addMonthYM(e.target_month);
+    return {
+      holding_month,             // 실제 보유한 달
+      measure_month: e.target_month, // 직전 월(선별 시점)
+      period: e.period,          // 선별에 쓴 월봉 구간
+      updated_at: e.updated_at,
+      passed_count: e.passed_count,
+      stocks: e.stocks || [],
+      returns: fr || null,       // null = 아직 집계 전(해당 월 미종료)
+    };
+  });
+  HOLDING.sort((a, b) => (a.holding_month < b.holding_month ? 1 : -1)); // 최신순
+}
+
+function buildMonthSelector(holding) {
   const sel = document.getElementById("month-select");
-  sel.innerHTML = history.map(h =>
-    `<option value="${h.target_month}">${formatMonthLabel(h.target_month)}</option>`
+  sel.innerHTML = holding.map(h =>
+    `<option value="${h.holding_month}">${formatMonthLabel(h.holding_month)}${h.returns ? "" : " · 집계 전"}</option>`
   ).join("");
-  sel.addEventListener("change", e => renderMonth(e.target.value));
+  sel.addEventListener("change", e => renderHoldingMonth(e.target.value));
 }
 
 function formatMonthLabel(ym) {
@@ -45,8 +76,8 @@ function formatMonthLabel(ym) {
   return `${y}년 ${parseInt(m, 10)}월`;
 }
 
-function renderMonth(target_month) {
-  const entry = HISTORY.find(h => h.target_month === target_month);
+function renderHoldingMonth(holding_month) {
+  const entry = HOLDING.find(h => h.holding_month === holding_month);
   if (entry) renderEntry(entry);
 }
 
@@ -72,37 +103,39 @@ function formatReturn(pct, n) {
          `<small class="value-sub">${n}개 평균</small>`;
 }
 
-function renderEntry(data) {
+function renderEntry(h) {
+  // 상단은 '보유(투자)월' 기준
   document.getElementById("target-month").textContent =
-    formatMonthLabel(data.target_month);
-  document.getElementById("period").textContent = data.period
-    ? `${data.period.start} → ${data.period.end}`
+    formatMonthLabel(h.holding_month);
+  document.getElementById("period").textContent = h.period
+    ? `${h.period.start} → ${h.period.end}`
     : "—";
-  document.getElementById("updated-at").textContent = fmtDate(data.updated_at);
+  document.getElementById("updated-at").textContent = fmtDate(h.updated_at);
   document.getElementById("passed-count").textContent =
-    fmtNum(data.passed_count || 0) + "개";
+    fmtNum(h.passed_count || 0) + "개";
 
-  // 다음 달 평균 수익률
+  // 해당 보유월의 수익률
   const fwdSection = document.getElementById("forward-section");
-  const fr = data.forward_returns;
+  const fr = h.returns;
+  const label = document.getElementById("fwd-month-label");
+  fwdSection.hidden = false;
   if (fr && (fr.top5_avg_pct !== null || fr.top10_avg_pct !== null || fr.top20_avg_pct !== null)) {
-    fwdSection.hidden = false;
-    document.getElementById("fwd-month-label").textContent =
-      `(${formatMonthLabel(fr.next_month)})`;
-    document.getElementById("fwd-top5").innerHTML =
-      formatReturn(fr.top5_avg_pct, fr.top5_n);
-    document.getElementById("fwd-top10").innerHTML =
-      formatReturn(fr.top10_avg_pct, fr.top10_n);
-    document.getElementById("fwd-top20").innerHTML =
-      formatReturn(fr.top20_avg_pct, fr.top20_n);
+    label.textContent = `(${formatMonthLabel(h.holding_month)})`;
+    document.getElementById("fwd-top5").innerHTML = formatReturn(fr.top5_avg_pct, fr.top5_n);
+    document.getElementById("fwd-top10").innerHTML = formatReturn(fr.top10_avg_pct, fr.top10_n);
+    document.getElementById("fwd-top20").innerHTML = formatReturn(fr.top20_avg_pct, fr.top20_n);
   } else {
-    fwdSection.hidden = true;
+    // 아직 해당 월이 끝나지 않아 수익률 집계 전
+    label.textContent = `(${formatMonthLabel(h.holding_month)} · 집계 전)`;
+    document.getElementById("fwd-top5").innerHTML = "<span class='value-sub'>집계 전</span>";
+    document.getElementById("fwd-top10").innerHTML = "<span class='value-sub'>집계 전</span>";
+    document.getElementById("fwd-top20").innerHTML = "<span class='value-sub'>집계 전</span>";
   }
 
   const tbody = document.getElementById("results-body");
-  const stocks = data.stocks || [];
+  const stocks = h.stocks || [];
   if (stocks.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="8" class="empty">해당 월에 통과한 종목이 없습니다.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8" class="empty">해당 월에 보유할 종목이 없습니다.</td></tr>`;
     return;
   }
 
