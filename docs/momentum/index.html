@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>KR 모멘텀 스크리너</title>
-  <link rel="stylesheet" href="style.css?v=260609" />
+  <link rel="stylesheet" href="style.css?v=260609b" />
 </head>
 <body>
   <header>
@@ -68,6 +68,78 @@
       매월 첫 거래일에 <strong>직전 월봉</strong> 기준으로 자동 스크리닝
       <br>예: 2026-02-01 실행 → 2025-12-31 종가 vs 2026-01-31 종가 → 2월 보유 추천
     </p>
+  </section>
+
+  <section class="dashboard perf">
+    <h2>퍼포먼스 분석 <span class="chart-metric">(기간·투자월 선택)</span></h2>
+    <p class="dashboard-note">
+      선택한 기간 중 <strong>선택한 '투자 월'에만</strong> (다음 달 평균 수익률 기준으로) 투자했다고 가정.
+      단순 합산이며 복리 미적용.
+    </p>
+
+    <div class="perf-controls">
+      <div class="perf-ctrl">
+        <label>기간</label>
+        <div class="perf-range">
+          <select id="perf-start"></select>
+          <span>~</span>
+          <select id="perf-end"></select>
+        </div>
+      </div>
+      <div class="perf-ctrl">
+        <label>기준</label>
+        <div class="tab-group" id="perf-basis">
+          <button class="tab" data-value="top5">Top 5</button>
+          <button class="tab active" data-value="top10">Top 10</button>
+          <button class="tab" data-value="top20">Top 20</button>
+        </div>
+      </div>
+      <div class="perf-ctrl perf-months-ctrl">
+        <label>
+          투자 월
+          <button type="button" id="perf-months-all" class="perf-mini">전체</button>
+          <button type="button" id="perf-months-none" class="perf-mini">해제</button>
+        </label>
+        <div class="perf-months" id="perf-months"></div>
+      </div>
+    </div>
+
+    <div class="meta perf-summary">
+      <div class="meta-card">
+        <span class="label">투자 개월수</span>
+        <span class="value" id="perf-count">—</span>
+      </div>
+      <div class="meta-card">
+        <span class="label">누적 단순 합산 수익률</span>
+        <span class="value" id="perf-sum">—</span>
+      </div>
+      <div class="meta-card">
+        <span class="label">월평균 수익률</span>
+        <span class="value" id="perf-avg">—</span>
+      </div>
+      <div class="meta-card">
+        <span class="label">최고 / 최저 월</span>
+        <span class="value small" id="perf-extremes">—</span>
+      </div>
+    </div>
+
+    <div class="chart-wrap"><canvas id="perf-chart"></canvas></div>
+
+    <div class="table-wrap">
+      <table class="compact">
+        <thead>
+          <tr>
+            <th>월</th>
+            <th class="num">투자 횟수</th>
+            <th class="num">합산 수익률</th>
+            <th class="num">월평균</th>
+          </tr>
+        </thead>
+        <tbody id="perf-month-body">
+          <tr><td colspan="4" class="empty">집계 중...</td></tr>
+        </tbody>
+      </table>
+    </div>
   </section>
 
   <section class="dashboard">
@@ -161,6 +233,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
-  <script src="app.js?v=260609"></script>
+  <script src="app.js?v=260609b"></script>
 </body>
 </html>

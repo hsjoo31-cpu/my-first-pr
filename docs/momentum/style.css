@@ -202,6 +202,95 @@ tr.total-row {
 }
 tr.total-row td { font-weight: 600; }
 
+/* ── 퍼포먼스 분석 ── */
+.perf-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 28px;
+  margin-bottom: 16px;
+  align-items: flex-start;
+}
+.perf-ctrl { display: flex; flex-direction: column; gap: 7px; }
+.perf-ctrl > label {
+  font-size: 12px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.perf-range { display: flex; align-items: center; gap: 8px; }
+.perf-range select {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 7px 10px;
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+}
+.perf-range select:focus { outline: 2px solid var(--accent); }
+
+.tab-group {
+  display: flex;
+  gap: 4px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 3px;
+}
+.tab-group .tab {
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  font-family: inherit;
+  font-size: 13px;
+  padding: 6px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.tab-group .tab:hover { background: var(--surface-hover); color: var(--text); }
+.tab-group .tab.active { background: var(--accent-dim); color: #fff; font-weight: 600; }
+
+.perf-months { display: flex; flex-wrap: wrap; gap: 4px; max-width: 360px; }
+.perf-month-btn {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  font-family: inherit;
+  font-size: 12px;
+  padding: 6px 0;
+  width: 44px;
+  text-align: center;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.perf-month-btn:hover { background: var(--surface-hover); color: var(--text); }
+.perf-month-btn.active {
+  background: var(--accent-dim);
+  border-color: var(--accent-dim);
+  color: #fff;
+  font-weight: 600;
+}
+.perf-mini {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  font-size: 10px;
+  padding: 1px 7px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.perf-mini:hover { color: var(--text); border-color: var(--text-dim); }
+
+.perf-summary { margin-bottom: 12px; }
+.meta-card .value.small { font-size: 13px; font-weight: 500; line-height: 1.5; }
+
 .results h2 {
   font-size: 14px;
   color: var(--text-dim);
