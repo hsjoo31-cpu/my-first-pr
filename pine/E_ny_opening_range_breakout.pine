@@ -22,11 +22,12 @@
 //    (롱은 종가>EMA, 숏은 종가<EMA). 역추세 대배팅 제거 목적.
 //
 // process_orders_on_close=true → 진입/EOD청산이 '봉 종가'에 체결되어 규칙과 일치.
-//   ⚠️ 청산(liquidation) 미모델링. TP/SL ±0.5% 대비 왕복 수수료(기본 0.12%)가
-//      작지 않으니 결과 해석 시 감안하세요.
+//   ⚠️ 청산(liquidation) 미모델링. 수수료는 메이커 0.02% 편도(왕복 0.04%) 가정.
+// 수수료: 메이커(지정가) 0.02% 편도 = 왕복 0.04% 가정 (낙관: 전 거래 메이커 체결 전제).
+//   ⚠️ 실거래에선 돌파 지정가 미체결·손절 시장가(테이커) 등으로 이보다 나쁠 수 있음.
 strategy("E NY 오프닝레인지 돌파 (5m)", overlay=true, initial_capital=10000,
      currency=currency.USD, process_orders_on_close=true,
-     commission_type=strategy.commission.percent, commission_value=0.06,
+     commission_type=strategy.commission.percent, commission_value=0.02,
      pyramiding=0, default_qty_type=strategy.percent_of_equity, default_qty_value=100,
      calc_on_every_tick=false)
 
