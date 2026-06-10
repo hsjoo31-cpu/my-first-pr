@@ -1,0 +1,95 @@
+//@version=5
+// 전략 E — NY 오프닝 레인지 돌파 (Opening Range Breakout, ORB)
+// ───────────────────────────────────────────────────────────────────────
+// 자산   : BTCUSDT.P (USDT-M 무기한 선물)
+// 기준봉 : 5분봉  /  타임존: America/New_York (UTC-4 EDT, DST 자동처리)
+// 거래일 : 평일(월~금, NY 기준)
+//
+// 규칙:
+//  1) 오프닝 레인지(OR): NY 09:00~09:30 = 09:00,09:05,...,09:25 시작하는 6개 5분봉.
+//     OR고가 = 6봉 중 최고가, OR저가 = 6봉 중 최저가.
+//  2) 방향(bias): 09:00 시가 vs 09:30 종가(=09:25봉 종가).
+//     종가 > 시가 → 롱편향, 종가 < 시가 → 숏편향, 같으면 무거래.
+//  3) 진입: 09:30 이후 ~ 당일 NY 자정 전까지,
+//     - 롱편향: OR고가를 '종가로 상향 돌파'(close > OR고가)하는 첫 5분봉 종가에 롱
+//     - 숏편향: OR저가를 '종가로 하향 돌파'(close < OR저가)하는 첫 5분봉 종가에 숏
+//     - 둘 다 안 나오면 그날은 미진입. 하루 최대 1회.
+//  4) 청산: TP/SL 각각 ±0.5%. 둘 다 안 닿으면 당일 NY 자정 직전봉(23:55) 종가에 청산.
+//
+// process_orders_on_close=true → 진입/EOD청산이 '봉 종가'에 체결되어 규칙과 일치.
+//   ⚠️ 청산(liquidation) 미모델링. TP/SL ±0.5% 대비 왕복 수수료(기본 0.12%)가
+//      작지 않으니 결과 해석 시 감안하세요.
+strategy("E NY 오프닝레인지 돌파 (5m)", overlay=true, initial_capital=10000,
+     currency=currency.USD, process_orders_on_close=true,
+     commission_type=strategy.commission.percent, commission_value=0.06,
+     pyramiding=0, default_qty_type=strategy.percent_of_equity, default_qty_value=100,
+     calc_on_every_tick=false)
+
+// ── 입력 ──
+tpPct   = input.float(0.5, "익절 TP %", step=0.1) / 100.0
+slPct   = input.float(0.5, "손절 SL %", step=0.1) / 100.0
+tz      = input.string("America/New_York", "타임존")
+orStartH = input.int(9, "OR 시작 시(時)", minval=0, maxval=23)
+orStartM = input.int(0, "OR 시작 분(分)", minval=0, maxval=55, step=5)
+orBars   = input.int(6, "OR 봉 개수(5m)", minval=1)
+
+// ── 시간 정보 (NY) ──
+h   = hour(time, tz)
+m   = minute(time, tz)
+dow = dayofweek(time, tz)
+isWeekday = dow != dayofweek.saturday and dow != dayofweek.sunday
+
+// OR 구간: 시작분 ~ 시작분+5*(orBars-1) (=09:00~09:25)
+orEndM   = orStartM + 5 * (orBars - 1)
+inOR     = isWeekday and h == orStartH and m >= orStartM and m <= orEndM
+orStartBar = isWeekday and h == orStartH and m == orStartM
+orEndBar   = isWeekday and h == orStartH and m == orEndM       // 종가=09:30
+// 진입 허용창: OR 종료 직후 ~ 당일 자정 직전(즉 같은 NY 날짜의 09:30~23:55)
+afterOR  = isWeekday and (h > orStartH or (h == orStartH and m > orEndM))
+eodBar   = h == 23 and m == 55                                 // 종가=NY 자정
+
+// ── 일중 상태 ──
+var float orHigh = na
+var float orLow  = na
+var float orOpen = na
+var int   bias   = 0
+var bool  traded = false
+
+if orStartBar
+    orHigh := high
+    orLow  := low
+    orOpen := open
+    bias   := 0
+    traded := false
+else if inOR
+    orHigh := math.max(orHigh, high)
+    orLow  := math.min(orLow,  low)
+
+// 방향 확정 (09:30 종가 기준)
+if orEndBar
+    bias := close > orOpen ? 1 : close < orOpen ? -1 : 0
+
+// ── 진입 (돌파 종가) ──
+canEnter = afterOR and not traded and strategy.position_size == 0 and not na(orHigh)
+longBreak  = canEnter and bias ==  1 and close > orHigh
+shortBreak = canEnter and bias == -1 and close < orLow
+
+if longBreak
+    traded := true
+    strategy.entry("L", strategy.long)
+    strategy.exit("L-x", "L",
+         limit=close * (1 + tpPct), stop=close * (1 - slPct))
+if shortBreak
+    traded := true
+    strategy.entry("S", strategy.short)
+    strategy.exit("S-x", "S",
+         limit=close * (1 - tpPct), stop=close * (1 + slPct))
+
+// ── 당일 종가(NY 자정) 강제 청산 ──
+if eodBar and strategy.position_size != 0
+    strategy.close_all(comment="EOD")
+
+// ── 시각화 ──
+plot(orHigh, "OR 고가", color.new(color.green, 0), style=plot.style_linebr)
+plot(orLow,  "OR 저가", color.new(color.red, 0),   style=plot.style_linebr)
+bgcolor(inOR ? color.new(color.blue, 90) : na, title="OR 구간")
