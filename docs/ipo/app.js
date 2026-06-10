@@ -397,24 +397,29 @@ function scheduleRecommendations() {
   // setTimeout으로 "계산 중" 표시를 먼저 그리게 함
   recoTimer = setTimeout(() => {
     const t0 = performance.now();
-    const top = runGridSearch();      // 평균수익률 상위 5 (핵심 전략별)
-    attachTieRanges(top);             // 각 항목의 손절 동률 범위
+    const result = runGridSearch();   // 보유기간별 평균/누적 TOP5
+    attachPeakHoldings(result);       // 각 추천의 동시 최대보유 종목수
     const ms = Math.round(performance.now() - t0);
-    renderRecommendations(top);
+    renderRecommendations(result);
     status.textContent = `${(GRID.reference.length * GRID.n.length * GRID.losscut.length * GRID.holdingMonths.length * GRID.target.length).toLocaleString()}개 조합 · ${ms}ms`;
   }, 30);
 }
 
-const TOP_N_RECO = 5; // 평균 수익률 상위 N개 추천
+const TOP_N_RECO = 5; // 각 순위 목록 상위 N개
 
 function runGridSearch() {
   const stocks = allStocks;
   const buyWindow = params.buyWindow;
   const hasIpo = stocks.some((s) => s.ipo_price);
 
-  // 핵심 전략(기준가·하락률·보유·목표)별로 최적 손절 1개만 유지
-  // → 손절만 다른 사실상 동일 전략이 순위를 도배하는 것 방지
-  const byCore = new Map();
+  // 보유기간(1·2·3개월)별로 분리.
+  // 각 보유기간 안에서 핵심전략(기준가·하락률·목표)별 최적 손절만 유지
+  // (손절만 다른 사실상 동일 전략 중복 방지). 평균용·누적용 각각.
+  const acc = {
+    1: { avg: new Map(), cum: new Map() },
+    2: { avg: new Map(), cum: new Map() },
+    3: { avg: new Map(), cum: new Map() },
+  };
 
   for (const reference of GRID.reference) {
     if (reference === "ipo_price" && !hasIpo) continue;
@@ -508,48 +513,38 @@ function runGridSearch() {
               }
             }
 
-            const winRate = completed > 0 ? (wins / completed) * 100 : 0;
             const avgReturn = completed > 0 ? retSum / completed : null;
             if (completed < MIN_COMPLETED || avgReturn == null) continue;
 
             const combo = {
               reference, n, losscut, holdingMonths, target,
-              signals, wins, completed, winRate, avgReturn,
+              signals, wins, completed, avgReturn, sum: retSum,
             };
-            const coreKey = `${reference}|${n}|${holdingMonths}|${target}`;
-            const ex = byCore.get(coreKey);
-            if (!ex || avgReturn > ex.avgReturn) byCore.set(coreKey, combo);
+            const core = `${reference}|${n}|${target}`;
+            const slot = acc[holdingMonths];
+            const a = slot.avg.get(core);
+            if (!a || avgReturn > a.avgReturn) slot.avg.set(core, combo);
+            const cu = slot.cum.get(core);
+            if (!cu || retSum > cu.sum) slot.cum.set(core, combo);
           }
         }
       }
     }
   }
 
-  // 평균 수익률 내림차순 상위 N개 (서로 다른 핵심 전략)
-  return [...byCore.values()]
-    .sort((a, b) => b.avgReturn - a.avgReturn)
-    .slice(0, TOP_N_RECO);
+  // 보유기간별: 평균수익률 / 누적수익률 각각 상위 N개
+  const result = {};
+  for (const h of [1, 2, 3]) {
+    result[h] = {
+      avg: [...acc[h].avg.values()].sort((a, b) => b.avgReturn - a.avgReturn).slice(0, TOP_N_RECO),
+      cum: [...acc[h].cum.values()].sort((a, b) => b.sum - a.sum).slice(0, TOP_N_RECO),
+    };
+  }
+  return result;
 }
 
 function refLabelOf(ref) {
   return ref === "ipo_price" ? "공모가" : "시초가";
-}
-
-// 단일 조합 전체 지표 (동률 범위 1D 스윕에 사용)
-function evalCombo(p) {
-  let wins = 0, completed = 0, retSum = 0, signals = 0;
-  for (const s of allStocks) {
-    const r = backtestStock(s, p);
-    if (r.status === "no_signal") continue;
-    signals++;
-    if (r.status === "target") { wins++; completed++; retSum += r.returnPct; }
-    else if (r.status === "losscut" || r.status === "expired") { completed++; retSum += r.returnPct; }
-  }
-  return {
-    signals, completed, wins,
-    winRate: completed ? (wins / completed) * 100 : 0,
-    avgReturn: completed ? retSum / completed : null,
-  };
 }
 
 // 해당 전략으로 매매했을 때 '동시에 보유한 최대 종목 수'(peak)
@@ -559,108 +554,88 @@ function peakConcurrentHoldings(p) {
   for (const s of allStocks) {
     const r = backtestStock(s, p);
     if (r.status === "no_signal" || !r.buyDate) continue;
-    const sell = r.sellDate || s.prices[s.prices.length - 1].d; // 진행중 → 데이터 끝까지 보유
+    const sell = r.sellDate || s.prices[s.prices.length - 1].d;
     intervals.push([r.buyDate, sell]);
   }
-  // peak은 어떤 매수일에서 발생 → 각 매수일에 열려있는 포지션 수의 최대
   let peak = 0;
   for (const [b0] of intervals) {
     let cnt = 0;
-    for (const [b, s] of intervals) {
-      if (b <= b0 && b0 <= s) cnt++;
-    }
+    for (const [b, s] of intervals) if (b <= b0 && b0 <= s) cnt++;
     if (cnt > peak) peak = cnt;
   }
   return peak;
 }
 
-// matches(정렬 가정 X)에서 repVal을 포함하는 연속 구간 [lo, hi]
-function contiguousAround(matchSet, repVal, step = 1) {
-  let lo = repVal, hi = repVal;
-  while (matchSet.has(lo - step)) lo -= step;
-  while (matchSet.has(hi + step)) hi += step;
-  return [lo, hi];
-}
-
-// 상위 N개 각각에 대해, 같은 평균수익률을 내는 손절 범위를 1D 스윕으로 계산
-function attachTieRanges(list) {
+// 화면에 표시되는 모든 추천 조합에 동시 최대보유 종목수 부착 (중복은 캐시)
+function attachPeakHoldings(result) {
   const bw = params.buyWindow;
-  for (const c of list) {
-    const targetAvg = c.avgReturn;
-    const lossSet = new Set();
-    for (let lc = 0; lc <= 50; lc += LC_STEP) {
-      const m = evalCombo({
-        reference: c.reference, n: c.n, losscut: lc,
-        holdingMonths: c.holdingMonths, target: c.target, buyWindow: bw,
-      });
-      if (m.completed >= MIN_COMPLETED && m.avgReturn != null &&
-          Math.abs(m.avgReturn - targetAvg) <= TIE_EPS) {
-        lossSet.add(lc);
+  const cache = new Map();
+  const keyOf = c => `${c.reference}|${c.n}|${c.losscut}|${c.holdingMonths}|${c.target}`;
+  for (const h of [1, 2, 3]) {
+    for (const list of [result[h].avg, result[h].cum]) {
+      for (const c of list) {
+        const k = keyOf(c);
+        if (!cache.has(k)) {
+          cache.set(k, peakConcurrentHoldings({
+            reference: c.reference, n: c.n, losscut: c.losscut,
+            holdingMonths: c.holdingMonths, target: c.target, buyWindow: bw,
+          }));
+        }
+        c.peakHoldings = cache.get(k);
       }
     }
-    c.lossRange = contiguousAround(lossSet, c.losscut, LC_STEP);
-
-    // 참고 통계: 이 전략으로 동시에 보유한 최대 종목 수
-    c.peakHoldings = peakConcurrentHoldings({
-      reference: c.reference, n: c.n, losscut: c.losscut,
-      holdingMonths: c.holdingMonths, target: c.target, buyWindow: bw,
-    });
   }
 }
 
-function rangeLabel(prefix, lo, hi, kind) {
-  if (lo === hi) return null; // 단일값 → 범위 아님
-  const f = kind === "loss"
-    ? (v) => (v === 0 ? "없음" : `-${v}%`)
-    : (v) => `-${v}%`;
-  return `${prefix} ${f(lo)}~${f(hi)} 동일`;
-}
-
-function recoCard(rank, c) {
+function recoRow(rank, c, metric) {
+  const val = metric === "cum" ? c.sum : c.avgReturn;
+  const cls = val >= 0 ? "positive" : "negative";
   const lossLabel = c.losscut > 0 ? `-${c.losscut}%` : "없음";
-  const headClass = c.avgReturn >= 0 ? "positive" : "negative";
-
-  let tieHtml = "";
-  if (c.lossRange) {
-    const l = rangeLabel("손절", c.lossRange[0], c.lossRange[1], "loss");
-    if (l) tieHtml = `<div class="reco-tie"><span class="reco-tie-range">${l}</span></div>`;
-  }
-
-  return `<div class="reco-card">
-    <div class="reco-rankrow">
-      <span class="reco-rank">${rank}위</span>
-      <span class="reco-metric">평균 수익률</span>
+  const strat = JSON.stringify({
+    reference: c.reference, n: c.n, losscut: c.losscut,
+    holdingMonths: c.holdingMonths, target: c.target,
+  });
+  return `<div class="reco-row">
+    <div class="reco-row-head">
+      <span class="reco-rank">${rank}</span>
+      <span class="reco-row-val ${cls}">${fmt(val)}</span>
+      <button class="reco-apply" data-strategy='${strat}'>적용</button>
     </div>
-    <div class="reco-headline ${headClass}">${fmt(c.avgReturn)}</div>
-    <div class="reco-params">
-      <span class="reco-chip"><b>기준가</b>${refLabelOf(c.reference)}</span>
-      <span class="reco-chip"><b>매수하락률</b>-${c.n}%</span>
-      <span class="reco-chip"><b>손절</b>${lossLabel}</span>
-      <span class="reco-chip"><b>보유</b>${c.holdingMonths}개월</span>
-      <span class="reco-chip"><b>목표</b>+${c.target}%</span>
-    </div>
-    ${tieHtml}
-    <div class="reco-note">신호 ${c.signals}건 · 완료 ${c.completed}건 · 달성 ${c.wins}건 · 동시 최대보유 ${c.peakHoldings}종목</div>
-    <button class="reco-apply" data-strategy='${JSON.stringify({
-      reference: c.reference, n: c.n, losscut: c.losscut,
-      holdingMonths: c.holdingMonths, target: c.target,
-    })}'>이 설정 적용</button>
+    <div class="reco-row-params">${refLabelOf(c.reference)} · 하락 -${c.n}% · 손절 ${lossLabel} · 목표 +${c.target}%</div>
+    <div class="reco-row-note">완료 ${c.completed} · 달성 ${c.wins} · 동시최대 ${c.peakHoldings}종목</div>
   </div>`;
 }
 
-function renderRecommendations(list) {
-  const cards = document.getElementById("reco-cards");
-  if (!list.length) {
-    cards.innerHTML = `<div class="reco-card placeholder">조건을 만족하는 전략이 없습니다 (완료 거래 ${MIN_COMPLETED}건 이상 필요)</div>`;
+function renderColList(list, metric) {
+  if (!list.length) return `<div class="reco-empty">데이터 없음</div>`;
+  return list.map((c, i) => recoRow(i + 1, c, metric)).join("");
+}
+
+function renderRecommendations(result) {
+  const container = document.getElementById("reco-cards");
+  const anyData = [1, 2, 3].some(h => result[h].avg.length || result[h].cum.length);
+  if (!anyData) {
+    container.innerHTML = `<div class="reco-card placeholder">조건을 만족하는 전략이 없습니다 (완료 거래 ${MIN_COMPLETED}건 이상 필요)</div>`;
     return;
   }
-  cards.innerHTML = list.map((c, i) => recoCard(i + 1, c)).join("");
+  container.innerHTML = [1, 2, 3].map(h => `
+    <div class="reco-block">
+      <h3 class="reco-block-title">${h}개월 보유</h3>
+      <div class="reco-cols">
+        <div class="reco-col">
+          <div class="reco-col-title">📊 평균 수익률 TOP 5</div>
+          ${renderColList(result[h].avg, "avg")}
+        </div>
+        <div class="reco-col">
+          <div class="reco-col-title">💰 누적 수익률 TOP 5 <small>(단순 합산)</small></div>
+          ${renderColList(result[h].cum, "cum")}
+        </div>
+      </div>
+    </div>
+  `).join("");
 
-  // "이 설정 적용" 버튼 바인딩
-  cards.querySelectorAll(".reco-apply").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      applyStrategy(JSON.parse(btn.dataset.strategy));
-    });
+  container.querySelectorAll(".reco-apply").forEach((btn) => {
+    btn.addEventListener("click", () => applyStrategy(JSON.parse(btn.dataset.strategy)));
   });
 }
 

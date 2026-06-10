@@ -128,9 +128,14 @@
   <!-- ── 추천 전략 ── -->
   <section class="reco">
     <div class="reco-header">
-      <h2>추천 전략 — 평균 수익률 TOP 5 <span class="reco-sub">(현재 매수 기회 기간 기준 · 핵심 전략별 최적 손절)</span></h2>
+      <h2>추천 전략 — 보유기간별 평균·누적 수익률 TOP 5 <span class="reco-sub">(현재 매수 기회 기간 기준)</span></h2>
       <span class="reco-status" id="reco-status"></span>
     </div>
+    <p class="reco-desc">
+      <strong>평균</strong>: 완료 거래 1건당 평균 수익률(거래 품질). ·
+      <strong>누적</strong>: 모든 완료 거래 수익률의 단순 합(단리) — 거래가 많을수록 커지므로
+      "동시최대 N종목"(필요 분산)과 함께 보세요.
+    </p>
     <div class="reco-cards" id="reco-cards">
       <div class="reco-card placeholder">계산 준비 중…</div>
     </div>
@@ -175,6 +180,6 @@
     <p>가격 데이터: <strong>KRX 정규장 기준</strong> (네이버 금융 일봉 · 09:00~15:30 · NXT 미포함)</p>
   </footer>
 
-  <script src="app.js?v=260609b"></script>
+  <script src="app.js?v=260609c"></script>
 </body>
 </html>
