@@ -1,4 +1,6 @@
 let HISTORY = [];   // 원본(측정월 기준) — 대시보드/퍼포먼스 집계에 사용
+let TP_CHART = null;
+let CURRENT_TP = 50;
 let HOLDING = [];   // 보유(투자)월 기준으로 재구성한 엔트리 — 상단 뷰에 사용
 let YEAR_CHART = null;
 let MONTH_CHART = null;
@@ -19,6 +21,8 @@ async function load() {
       renderEntry(HOLDING[0]);
       buildDashboard(history);
       buildPerfAnalysis(history);
+      setupTPControls();
+      buildTPComparison(history, CURRENT_TP);
     } else {
       const res = await fetch("../data/results.json?ts=" + Date.now());
       if (!res.ok) throw new Error("HTTP " + res.status);
@@ -544,6 +548,170 @@ function renderPerfChart(canvasId, prev, labels, data, basis) {
       scales: {
         x: { grid: { display: false } },
         y: { grid: { color: "rgba(42, 49, 66, 0.6)" }, ticks: { callback: (v) => `${v >= 0 ? "+" : ""}${v}%` } },
+      },
+    },
+  });
+}
+
+function setupTPControls() {
+  const controls = document.getElementById("tp-controls");
+  if (!controls) return;
+  controls.addEventListener("click", (e) => {
+    const btn = e.target.closest(".tp-btn");
+    if (!btn) return;
+    const tp = parseInt(btn.dataset.tp, 10);
+    if (!tp || tp === CURRENT_TP) return;
+    CURRENT_TP = tp;
+    controls.querySelectorAll(".tp-btn").forEach(b =>
+      b.classList.toggle("active", parseInt(b.dataset.tp, 10) === tp)
+    );
+    buildTPComparison(HISTORY, CURRENT_TP);
+  });
+}
+
+function buildTPComparison(history, tp) {
+  const section = document.getElementById("tp-section");
+  const tpKey = String(tp);
+
+  // 데이터 유무 검사
+  const hasTP = history.some(e =>
+    e.forward_returns && e.forward_returns.take_profit &&
+    e.forward_returns.take_profit[tpKey]
+  );
+  if (!hasTP) {
+    section.hidden = true;
+    return;
+  }
+  section.hidden = false;
+
+  // 연도별 집계
+  const byYear = {};
+  for (const entry of history) {
+    const fr = entry.forward_returns;
+    if (!fr || !fr.next_month) continue;
+    const [year] = fr.next_month.split("-");
+    if (!byYear[year]) byYear[year] = {
+      bh5: [], bh10: [], bh20: [],
+      tp5: [], tp10: [], tp20: [],
+    };
+    for (const k of [5, 10, 20]) {
+      const v = fr[`top${k}_avg_pct`];
+      if (v != null) byYear[year][`bh${k}`].push(v);
+    }
+    const tpData = fr.take_profit && fr.take_profit[tpKey];
+    if (tpData) {
+      for (const k of [5, 10, 20]) {
+        const v = tpData[`top${k}_avg_pct`];
+        if (v != null) byYear[year][`tp${k}`].push(v);
+      }
+    }
+  }
+
+  const sum = arr => arr.length ? arr.reduce((a, b) => a + b, 0) : null;
+
+  const years = Object.keys(byYear).sort();
+  const rows = years.map(y => {
+    const d = byYear[y];
+    return {
+      label: `${y}년`,
+      count: d.bh10.length,
+      bh5: sum(d.bh5), tp5: sum(d.tp5),
+      bh10: sum(d.bh10), tp10: sum(d.tp10),
+      bh20: sum(d.bh20), tp20: sum(d.tp20),
+    };
+  });
+
+  const allBH5  = years.flatMap(y => byYear[y].bh5);
+  const allTP5  = years.flatMap(y => byYear[y].tp5);
+  const allBH10 = years.flatMap(y => byYear[y].bh10);
+  const allTP10 = years.flatMap(y => byYear[y].tp10);
+  const allBH20 = years.flatMap(y => byYear[y].bh20);
+  const allTP20 = years.flatMap(y => byYear[y].tp20);
+  rows.push({
+    label: "전체",
+    count: allBH10.length,
+    bh5: sum(allBH5),   tp5: sum(allTP5),
+    bh10: sum(allBH10), tp10: sum(allTP10),
+    bh20: sum(allBH20), tp20: sum(allTP20),
+    isTotal: true,
+  });
+
+  renderTPTable(rows);
+  TP_CHART = renderTPChart("tp-chart", TP_CHART, rows, tp);
+}
+
+function renderTPTable(rows) {
+  const tbody = document.getElementById("tp-table-body");
+  tbody.innerHTML = rows.map(r => `
+    <tr${r.isTotal ? ' class="total-row"' : ""}>
+      <td><strong>${r.label}</strong></td>
+      <td class="num">${r.count}</td>
+      <td class="num ${retClass(r.bh5)}">${fmtPct(r.bh5)}</td>
+      <td class="num ${retClass(r.tp5)}">${fmtPct(r.tp5)}</td>
+      <td class="num ${retClass(r.bh10)}">${fmtPct(r.bh10)}</td>
+      <td class="num ${retClass(r.tp10)}">${fmtPct(r.tp10)}</td>
+      <td class="num ${retClass(r.bh20)}">${fmtPct(r.bh20)}</td>
+      <td class="num ${retClass(r.tp20)}">${fmtPct(r.tp20)}</td>
+    </tr>
+  `).join("");
+}
+
+function renderTPChart(canvasId, prev, rows, tp) {
+  if (typeof Chart === "undefined") return null;
+  if (prev) prev.destroy();
+  const ctx = document.getElementById(canvasId).getContext("2d");
+  if (window.ChartDataLabels && !Chart._dlRegistered) {
+    Chart.register(window.ChartDataLabels);
+    Chart._dlRegistered = true;
+  }
+
+  return new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: rows.map(r => r.label),
+      datasets: [
+        {
+          label: "Top 10 보유",
+          data: rows.map(r => r.bh10),
+          backgroundColor: "rgba(74,222,128,0.78)",
+          borderColor: "#16a34a", borderWidth: 1, borderRadius: 3,
+        },
+        {
+          label: `Top 10 익절 +${tp}%`,
+          data: rows.map(r => r.tp10),
+          backgroundColor: "rgba(251,191,36,0.78)",
+          borderColor: "#d97706", borderWidth: 1, borderRadius: 3,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      layout: { padding: { top: 18 } },
+      plugins: {
+        legend: { position: "top", labels: { boxWidth: 14, boxHeight: 14, padding: 12 } },
+        tooltip: {
+          backgroundColor: "#1a1f2e",
+          borderColor: "#2a3142", borderWidth: 1, padding: 10,
+          callbacks: {
+            label: (c) => {
+              const v = c.parsed.y;
+              if (v == null) return `${c.dataset.label}: 데이터 없음`;
+              return `${c.dataset.label}: ${v >= 0 ? "+" : ""}${v.toFixed(1)}%`;
+            },
+          },
+        },
+        datalabels: {
+          anchor: (ctx) => ctx.dataset.data[ctx.dataIndex] >= 0 ? "end" : "start",
+          align:  (ctx) => ctx.dataset.data[ctx.dataIndex] >= 0 ? "end" : "start",
+          color: "#e8ecf3",
+          font: { size: 10, weight: "600" },
+          formatter: (v) => v == null ? "" : `${v >= 0 ? "+" : ""}${v.toFixed(0)}%`,
+        },
+      },
+      scales: {
+        x: { grid: { display: false } },
+        y: { grid: { color: "rgba(42,49,66,0.6)" }, ticks: { callback: (v) => `${v >= 0 ? "+" : ""}${v}%` } },
       },
     },
   });

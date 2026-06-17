@@ -38,7 +38,10 @@ NAVER_MAX_PAGES = 50
 
 HISTORY_PATH = os.path.join("docs", "data", "history.json")
 PRICE_CACHE = "backfill_prices.parquet"
+HIGH_CACHE = "backfill_highs.parquet"
 REPORTS_CACHE = "backfill_reports.json"
+
+TP_THRESHOLDS = [20, 30, 50, 100]  # 익절 임계값 (%)
 
 HEADERS = {
     "User-Agent": (
@@ -50,27 +53,28 @@ HEADERS = {
 KST = timezone(timedelta(hours=9))
 
 
-def fetch_close_panel(codes, start, end):
-    """FinanceDataReader(네이버 일봉, KRX 정규장 기준)로 종가 패널 구성.
-    네이버는 동시요청 시 스로틀링/행이 발생할 수 있어 순차 수집한다.
-    (전역 socket timeout으로 개별 요청 행을 방지)"""
-    closes = {}
+def fetch_panels(codes, start, end):
+    """FDR로 Close + High 동시 수집 (FDR DataReader는 OHLC 모두 반환)."""
+    closes, highs = {}, {}
     total = len(codes)
     for i, code in enumerate(codes):
         try:
             df = fdr.DataReader(code, start, end)
-            if df is not None and not df.empty and "Close" in df.columns:
-                closes[code] = df["Close"]
+            if df is not None and not df.empty:
+                if "Close" in df.columns:
+                    closes[code] = df["Close"]
+                if "High" in df.columns:
+                    highs[code] = df["High"]
         except Exception:
             pass
         if (i + 1) % 100 == 0 or (i + 1) == total:
             print(f"  prices {i + 1}/{total}", flush=True)
         time.sleep(0.1)
-    if not closes:
-        return pd.DataFrame()
-    panel = pd.DataFrame(closes)
-    panel.sort_index(inplace=True)
-    return panel
+    cp = pd.DataFrame(closes) if closes else pd.DataFrame()
+    hp = pd.DataFrame(highs) if highs else pd.DataFrame()
+    cp.sort_index(inplace=True)
+    hp.sort_index(inplace=True)
+    return cp, hp
 
 
 def crawl_naver_dates(ticker, until_date):
@@ -130,23 +134,26 @@ def main():
     months = list(month_range(START_MONTH, end_month))
     print(f"  백필 범위: {months[0]} ~ {months[-1]} ({len(months)}개월)\n", flush=True)
 
-    # [2] 가격 데이터 일괄 다운로드
+    # [2] 가격 데이터 (Close + High) 일괄 다운로드
     print("[2/5] 가격 데이터 다운로드...", flush=True)
-    if os.path.exists(PRICE_CACHE):
+    if os.path.exists(PRICE_CACHE) and os.path.exists(HIGH_CACHE):
         prices = pd.read_parquet(PRICE_CACHE)
-        print(f"  → 캐시 사용: {prices.shape}\n", flush=True)
+        highs = pd.read_parquet(HIGH_CACHE)
+        print(f"  → 캐시 사용: close={prices.shape}, high={highs.shape}\n", flush=True)
     else:
-        # START_MONTH 직전 월말 데이터 확보를 위해 1개월 여유
         fetch_start_dt = datetime.strptime(START_MONTH, "%Y-%m") - relativedelta(months=1)
         fetch_start = fetch_start_dt.strftime("%Y-%m-%d")
         fetch_end = today.strftime("%Y-%m-%d")
-        prices = fetch_close_panel(
+        prices, highs = fetch_panels(
             universe["Code"].tolist(), fetch_start, fetch_end,
         )
         prices = prices.loc[:, ~prices.columns.duplicated()]
+        highs = highs.loc[:, ~highs.columns.duplicated()]
         prices = prices.dropna(how="all").ffill(limit=5)
+        highs = highs.dropna(how="all")
         prices.to_parquet(PRICE_CACHE)
-        print(f"  → 다운로드 완료: {prices.shape} (캐시 저장)\n", flush=True)
+        highs.to_parquet(HIGH_CACHE)
+        print(f"  → 다운로드 완료: close={prices.shape}, high={highs.shape} (캐시 저장)\n", flush=True)
 
     # [3] 월별 수익률 계산 → 후보 종목 모음
     print("[3/5] 월별 상위 종목 계산...", flush=True)
@@ -259,42 +266,86 @@ def main():
             "stocks": passed,
         })
 
-    # forward returns: 각 월의 top5/top10/top20을 다음 월말까지 보유 시 평균
+    # forward returns: 보유 종료 시 + 익절(Take-Profit) 시나리오 비교
     for i in range(len(new_history) - 1):
         curr = new_history[i]
         if i + 1 >= len(monthly_data):
             continue
         curr_end = monthly_data[i]["end_dt"]
         next_end = monthly_data[i + 1]["end_dt"]
-        rets5, rets10, rets20 = [], [], []
+
+        # 보유 기간 High 데이터 (entry < t <= exit)
+        hold_mask = (highs.index > curr_end) & (highs.index <= next_end)
+        highs_period = highs.loc[hold_mask] if not highs.empty else pd.DataFrame()
+
+        # 1) buy-and-hold 수익률
+        rets_bh = {"5": [], "10": [], "20": []}
+        # 2) TP 시나리오: {tp_pct: {"5": [], "10": [], "20": []}}
+        rets_tp = {tp: {"5": [], "10": [], "20": []} for tp in TP_THRESHOLDS}
+        hits_tp = {tp: {"5": 0, "10": 0, "20": 0} for tp in TP_THRESHOLDS}
+
         for idx, s in enumerate(curr.get("stocks", [])[:20]):
             t = s["ticker"]
             if t not in prices.columns:
                 continue
             try:
-                px_a = prices.at[curr_end, t]
-                px_b = prices.at[next_end, t]
+                entry_px = prices.at[curr_end, t]
+                exit_px = prices.at[next_end, t]
             except KeyError:
                 continue
-            if pd.isna(px_a) or pd.isna(px_b) or px_a <= 0:
+            if pd.isna(entry_px) or pd.isna(exit_px) or entry_px <= 0:
                 continue
-            r = (px_b / px_a - 1) * 100
-            if idx < 5:
-                rets5.append(r)
-            if idx < 10:
-                rets10.append(r)
-            rets20.append(r)
-        if rets5 or rets10 or rets20:
-            curr["forward_returns"] = {
+
+            bh_ret = (exit_px / entry_px - 1) * 100
+
+            # 보유 기간 최고가
+            if t in highs_period.columns:
+                period_high = highs_period[t].max()
+            else:
+                period_high = None
+
+            # 버킷 분류
+            def buckets():
+                if idx < 5:  yield "5"
+                if idx < 10: yield "10"
+                yield "20"
+
+            for b in buckets():
+                rets_bh[b].append(bh_ret)
+
+            for tp in TP_THRESHOLDS:
+                tp_price = entry_px * (1 + tp / 100)
+                hit = period_high is not None and not pd.isna(period_high) and period_high >= tp_price
+                tp_ret = float(tp) if hit else bh_ret
+                for b in buckets():
+                    rets_tp[tp][b].append(tp_ret)
+                    if hit:
+                        hits_tp[tp][b] += 1
+
+        if rets_bh["5"] or rets_bh["10"] or rets_bh["20"]:
+            avg = lambda arr: round(sum(arr) / len(arr), 2) if arr else None
+            fr = {
                 "next_month": new_history[i + 1]["target_month"],
                 "next_period": new_history[i + 1]["period"],
-                "top5_avg_pct": round(sum(rets5) / len(rets5), 2) if rets5 else None,
-                "top10_avg_pct": round(sum(rets10) / len(rets10), 2) if rets10 else None,
-                "top20_avg_pct": round(sum(rets20) / len(rets20), 2) if rets20 else None,
-                "top5_n": len(rets5),
-                "top10_n": len(rets10),
-                "top20_n": len(rets20),
+                "top5_avg_pct": avg(rets_bh["5"]),
+                "top10_avg_pct": avg(rets_bh["10"]),
+                "top20_avg_pct": avg(rets_bh["20"]),
+                "top5_n": len(rets_bh["5"]),
+                "top10_n": len(rets_bh["10"]),
+                "top20_n": len(rets_bh["20"]),
+                "take_profit": {},
             }
+            for tp in TP_THRESHOLDS:
+                key = str(tp)
+                fr["take_profit"][key] = {
+                    "top5_avg_pct":  avg(rets_tp[tp]["5"]),
+                    "top10_avg_pct": avg(rets_tp[tp]["10"]),
+                    "top20_avg_pct": avg(rets_tp[tp]["20"]),
+                    "top5_hit":  hits_tp[tp]["5"],
+                    "top10_hit": hits_tp[tp]["10"],
+                    "top20_hit": hits_tp[tp]["20"],
+                }
+            curr["forward_returns"] = fr
 
     # 정렬 (최신순) 및 저장
     new_history.sort(key=lambda h: h["target_month"], reverse=True)
