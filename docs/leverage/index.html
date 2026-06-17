@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>나스닥100 레버리지 전략 추적기</title>
+  <link rel="stylesheet" href="style.css?v=260617" />
+</head>
+<body>
+  <header>
+    <a class="back-link" href="../index.html">← 홈으로</a>
+    <h1>나스닥100 레버리지 전략 추적기 <span class="risk-badge">⚠ 고위험 레버리지</span></h1>
+    <p class="subtitle">
+      QQQ 종가 200일선 ±1% 밴드로 판단하는 <strong>TQQQ ↔ 현금</strong> 스위칭 전략의 오늘 신호
+    </p>
+  </header>
+
+  <!-- ── 면책 배너 ── -->
+  <div class="disclaimer-top">
+    <strong>투자 참고용이며 투자 권유가 아닙니다.</strong>
+    아래 수치는 정해진 규칙의 현재 신호를 중립적으로 보여줄 뿐, 매매를 권하는 것이 아닙니다.
+    과거 백테스트 결과는 <strong>미래 수익을 보장하지 않으며</strong>,
+    이 전략은 <strong>-50% 이상 낙폭이 발생할 수 있는 고위험 레버리지 전략</strong>입니다.
+  </div>
+
+  <!-- ── 1순위: 현재 신호 대시보드 ── -->
+  <div class="section-title">
+    현재 신호 <span class="sub">SMA200 ±1% 밴드 스위칭 · 미국 증시 종가(EOD) 기준 · 실시간 아님</span>
+  </div>
+
+  <section class="signal-hero state-loading" id="signal-hero">
+    <div class="signal-top">
+      <div class="signal-state">
+        <span class="signal-dot" id="signal-dot">⏳</span>
+        <div class="signal-state-text">
+          <div class="label">현재 전략 상태</div>
+          <div class="name" id="signal-name">불러오는 중…</div>
+        </div>
+      </div>
+      <div class="signal-cushion">
+        <div class="cushion-label">전환까지 여유</div>
+        <div class="cushion-val" id="cushion-val">—</div>
+        <div class="cushion-note" id="cushion-note"></div>
+      </div>
+    </div>
+
+    <!-- 밴드 게이지 -->
+    <div class="gauge">
+      <div class="gauge-top" id="gauge-top"></div>
+      <div class="gauge-track" id="gauge-track">
+        <!-- JS가 zone/tick/marker 삽입 -->
+      </div>
+      <div class="gauge-axis" id="gauge-axis"></div>
+      <div class="gauge-legend">
+        <span><i class="gl-cash"></i> 현금 구간 (매도선 아래)</span>
+        <span><i class="gl-hold"></i> 밴드 내 유지 (±1%)</span>
+        <span><i class="gl-tqqq"></i> TQQQ 구간 (매수선 위)</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 지표 카드 -->
+  <section class="meta">
+    <div class="meta-card">
+      <span class="label">QQQ 종가</span>
+      <span class="value" id="m-close">—</span>
+      <span class="sub" id="m-close-date">—</span>
+    </div>
+    <div class="meta-card">
+      <span class="label">SMA200</span>
+      <span class="value" id="m-sma">—</span>
+      <span class="sub">200일 단순이동평균(종가)</span>
+    </div>
+    <div class="meta-card">
+      <span class="label">매수선 (×1.01)</span>
+      <span class="value buy" id="m-buy">—</span>
+      <span class="sub">현금 → TQQQ 전환</span>
+    </div>
+    <div class="meta-card">
+      <span class="label">매도선 (×0.99)</span>
+      <span class="value sell" id="m-sell">—</span>
+      <span class="sub">TQQQ → 현금 전환</span>
+    </div>
+    <div class="meta-card">
+      <span class="label">SMA 대비 위치</span>
+      <span class="value" id="m-vssma">—</span>
+      <span class="sub">(종가−SMA)/SMA</span>
+    </div>
+    <div class="meta-card">
+      <span class="label">마지막 전환</span>
+      <span class="value small" id="m-lastswitch">—</span>
+      <span class="sub" id="m-held">—</span>
+    </div>
+  </section>
+
+  <!-- 데이터 상태 -->
+  <div class="data-status">
+    <div class="ds-left" id="ds-left">데이터 불러오는 중…</div>
+    <button class="btn ghost" id="refresh-btn" title="캐시를 비우고 최신 종가를 다시 받습니다">↻ 새로고침</button>
+  </div>
+
+  <!-- ── 2순위: 성과 추적 ── -->
+  <div class="section-title">
+    성과 추적 <span class="sub">시작일·시드 입력 → 세 전략의 자산 추이 (스위칭 / QLD 바이앤홀드 / 50:50)</span>
+  </div>
+
+  <section class="panel" id="perf-panel">
+    <p class="panel-note">
+      입력한 <strong>시작일</strong>부터 최근 거래일까지 일별 종가로 세 전략의 자산 가치를 계산합니다.
+      스위칭은 신호 확정(종가) 후 <strong>다음 거래일 체결</strong>, 전환 시 <strong>5bp 비용</strong>,
+      현금 구간 수익 0% 가정. 50:50은 시드 절반씩 스위칭·QLD에 독립 운용(연 1회 재조정 권장)입니다.
+      <strong>세금·환율 미반영.</strong>
+    </p>
+
+    <div class="perf-controls">
+      <div class="perf-ctrl">
+        <label for="perf-start">시작일</label>
+        <input type="date" id="perf-start" />
+      </div>
+      <div class="perf-ctrl">
+        <label for="perf-seed">시드 금액 (원)</label>
+        <input type="number" id="perf-seed" min="1" step="1000000" value="10000000" />
+      </div>
+    </div>
+
+    <div class="perf-summary" id="perf-summary" hidden></div>
+    <div class="chart-wrap" id="chart-wrap" hidden>
+      <canvas id="perf-chart"></canvas>
+    </div>
+    <div class="perf-msg" id="perf-msg">성과 비교 차트를 보려면 아래에서 무료 API 키를 입력하세요.</div>
+  </section>
+
+  <!-- ── API 키 설정 ── -->
+  <div class="section-title">데이터 설정 <span class="sub">무료 API 키 (브라우저에만 저장됨)</span></div>
+  <section class="panel">
+    <p class="panel-note">
+      현재 신호(QQQ만 필요)는 <strong>키 없이도</strong> 동작합니다.
+      <strong>성과 비교 차트는 TQQQ·QLD 데이터가 필요</strong>해 무료 키가 있어야 합니다.
+      <a class="key-link" href="https://twelvedata.com/register" target="_blank" rel="noopener">Twelve Data 무료 키 10초 발급 →</a>
+      (무료 800콜/일 · 발급한 키는 이 브라우저의 localStorage에만 저장되고 서버로 전송되지 않습니다.)
+    </p>
+    <div class="key-row">
+      <input type="text" id="api-key" placeholder="Twelve Data API key 붙여넣기" autocomplete="off" spellcheck="false" />
+      <button class="btn" id="save-key-btn">저장 후 불러오기</button>
+      <button class="btn ghost" id="clear-key-btn">키 삭제</button>
+    </div>
+    <div class="key-status" id="key-status"></div>
+  </section>
+
+  <!-- ── 과거 백테스트 (참고) ── -->
+  <div class="section-title">
+    과거 백테스트 <span class="sub">2016-06-15 ~ 2026-06-15 (10년) · QQQ 종가 SMA200 ±1% · 스위칭당 5bp · 세전</span>
+  </div>
+  <section class="panel" style="padding:0; overflow:hidden;">
+    <div class="table-wrap" style="border:none; border-radius:0;">
+      <table>
+        <thead>
+          <tr>
+            <th>전략</th>
+            <th class="num">CAGR(세전)</th>
+            <th class="num">최대낙폭(MDD)</th>
+            <th class="num">Sharpe</th>
+            <th class="num">Calmar</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="highlight-row">
+            <td><span class="strat-name">SMA200 ±1% 밴드 스위칭</span></td>
+            <td class="num positive">48.7%</td>
+            <td class="num negative">-54.9%</td>
+            <td class="num">1.06</td>
+            <td class="num">0.89</td>
+          </tr>
+          <tr>
+            <td><span class="strat-name">50:50 혼합</span></td>
+            <td class="num positive">44.6%</td>
+            <td class="num negative">-52.1%</td>
+            <td class="num">1.06</td>
+            <td class="num">0.86</td>
+          </tr>
+          <tr>
+            <td><span class="strat-name">QLD 바이앤홀드</span></td>
+            <td class="num positive">36.5%</td>
+            <td class="num negative">-63.7%</td>
+            <td class="num">0.92</td>
+            <td class="num">0.57</td>
+          </tr>
+          <tr>
+            <td><span class="strat-name">TQQQ 바이앤홀드 (비교)</span></td>
+            <td class="num positive">45.9%</td>
+            <td class="num negative">-81.7%</td>
+            <td class="num">0.91</td>
+            <td class="num">0.56</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ── 한계/주의 ── -->
+  <div class="section-title">전략의 한계 <span class="sub">개발자 주석 · 중립적 참고</span></div>
+  <section class="panel">
+    <ul class="notes">
+      <li>위 백테스트 우위의 상당 부분은 <strong>2022년 약세장 회피 한 번</strong>에서 나왔습니다. 큰 하락 없는 횡보장이 길어지면 잦은 휩쏘(whipsaw)로 바이앤홀드에 질 수 있습니다.</li>
+      <li>밴드 1%·SMA 200일은 과최적화를 피해 "인접값들도 괜찮은 고원"에서 고른 값일 뿐 유일한 정답이 아닙니다.</li>
+      <li>이 페이지는 "이 전략을 따르라"가 아니라 <strong>"이 규칙의 현재 신호는 이렇다"</strong>를 중립적으로 보여줍니다.</li>
+      <li>위 백테스트는 <strong>역사적으로 매우 강한 강세 10년</strong>의 결과이며 미래 기대수익이 아닙니다. 세후(해외주식 양도세 22% 단순 가정) 참고: 스위칭 ~38.4%, QLD ~33.4%, 50:50 ~36%.</li>
+    </ul>
+  </section>
+
+  <footer>
+    <p class="warn">⚠ 고위험 레버리지 전략 · 단기간 -50% 이상 낙폭이 발생할 수 있습니다.</p>
+    <p>본 데이터는 투자 참고용이며 투자 권유가 아닙니다. 과거 백테스트는 미래 수익을 보장하지 않습니다.</p>
+    <p>가격 데이터: <a href="https://twelvedata.com/" target="_blank" rel="noopener">Twelve Data</a> 일봉(EOD) · 신호는 미국장 마감 후 1회 갱신 · 장중 시세 아님</p>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="app.js?v=260617"></script>
+</body>
+</html>
