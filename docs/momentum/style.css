@@ -192,6 +192,39 @@ header h1 {
 @media (max-width: 640px) {
   .chart-wrap { height: 260px; padding: 10px; }
 }
+
+.tp-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.tp-controls-label {
+  font-size: 13px;
+  color: var(--text-dim);
+  margin-right: 4px;
+}
+.tp-btn {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.tp-btn:hover { background: var(--surface-hover); }
+.tp-btn.active {
+  background: rgba(74, 222, 128, 0.18);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+table th[colspan] { text-align: center; }
+table th[colspan] small { font-weight: 400; }
 table.compact th, table.compact td {
   padding: 8px 12px;
   font-size: 13px;

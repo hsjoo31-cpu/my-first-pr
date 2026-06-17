@@ -200,6 +200,49 @@
     </div>
   </section>
 
+  <section class="dashboard tp-section" id="tp-section" hidden>
+    <h2>익절 전략 비교 <span class="chart-metric">(보유 중 +N% 도달 시 즉시 매도 vs 월말 매도)</span></h2>
+    <p class="dashboard-note">
+      보유 기간(다음 달) 중 일중 고가가 임계값을 넘으면 그 시점에서 익절 매도한 것으로 가정.
+      넘지 못하면 월말 종가 매도. 임계값을 선택해서 결과를 비교할 수 있습니다.
+    </p>
+    <div class="tp-controls" id="tp-controls">
+      <span class="tp-controls-label">익절 임계값:</span>
+      <button type="button" class="tp-btn" data-tp="20">+20%</button>
+      <button type="button" class="tp-btn" data-tp="30">+30%</button>
+      <button type="button" class="tp-btn active" data-tp="50">+50%</button>
+      <button type="button" class="tp-btn" data-tp="100">+100%</button>
+    </div>
+    <div class="chart-wrap"><canvas id="tp-chart"></canvas></div>
+    <div class="table-wrap">
+      <table class="compact">
+        <thead>
+          <tr>
+            <th rowspan="2">연도</th>
+            <th rowspan="2" class="num">월수</th>
+            <th colspan="2" class="num">Top 5</th>
+            <th colspan="2" class="num">Top 10</th>
+            <th colspan="2" class="num">Top 20</th>
+          </tr>
+          <tr>
+            <th class="num"><small>보유</small></th>
+            <th class="num"><small>익절</small></th>
+            <th class="num"><small>보유</small></th>
+            <th class="num"><small>익절</small></th>
+            <th class="num"><small>보유</small></th>
+            <th class="num"><small>익절</small></th>
+          </tr>
+        </thead>
+        <tbody id="tp-table-body">
+          <tr><td colspan="8" class="empty">집계 중...</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="dashboard-note" style="margin-top:10px">
+      <strong>단순화 가정</strong>: 임계값 정확히 체결, 거래비용·슬리피지 미반영. 익절 도달 후 잔여 기간 미투자(현금화). 실제 결과는 더 낮을 가능성.
+    </p>
+  </section>
+
   <section class="results">
     <h2>보유 종목 <span class="chart-metric">(직전 월 말 모멘텀으로 선별)</span></h2>
     <div class="table-wrap">
