@@ -1,0 +1,276 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0f1419;
+  --surface: #1a1f2e;
+  --surface-hover: #232a3d;
+  --border: #2a3142;
+  --text: #e8ecf3;
+  --text-dim: #8a93a6;
+  --accent: #4ade80;
+  --accent-dim: #16a34a;
+  --negative: #f87171;
+  --warn: #fbbf24;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Pretendard",
+               "Apple SD Gothic Neo", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+  padding: 32px 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+header { margin-bottom: 28px; }
+.back-link {
+  display: inline-block;
+  font-size: 13px;
+  color: var(--text-dim);
+  text-decoration: none;
+  margin-bottom: 12px;
+}
+.back-link:hover { color: var(--accent); }
+header h1 {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin-bottom: 6px;
+}
+.subtitle { color: var(--text-dim); font-size: 14px; }
+.updated { color: var(--text-dim); font-size: 12px; margin-top: 6px; }
+.krx-badge {
+  display: inline-block;
+  vertical-align: middle;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+  background: rgba(74, 222, 128, 0.12);
+  border: 1px solid var(--accent-dim);
+  border-radius: 6px;
+  padding: 3px 8px;
+  margin-left: 8px;
+}
+
+section { margin-bottom: 32px; }
+section h2 {
+  font-size: 15px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-dim);
+  margin-bottom: 14px;
+}
+.week-label, .count-label {
+  font-size: 12px;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  margin-left: 6px;
+}
+
+/* ① 매수 신호 */
+.signal-section h2 { color: var(--accent); }
+.signal-empty {
+  background: var(--surface);
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  padding: 22px;
+  color: var(--text-dim);
+  font-size: 14px;
+}
+.signal-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 14px;
+}
+.signal-card {
+  background: linear-gradient(135deg, rgba(74, 222, 128, 0.10), var(--surface) 45%);
+  border: 1px solid var(--accent-dim);
+  border-radius: 14px;
+  padding: 20px;
+}
+.signal-card .stock-name {
+  font-size: 19px;
+  font-weight: 700;
+}
+.signal-card .stock-code {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-left: 6px;
+}
+.signal-card .buy-price {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--accent);
+  margin: 8px 0 14px;
+}
+.signal-card .buy-price small {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-dim);
+  margin-left: 6px;
+}
+.level-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+}
+.level {
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 8px;
+  padding: 9px 10px;
+}
+.level .lv-label { font-size: 11px; color: var(--text-dim); display: block; }
+.level .lv-value { font-size: 14px; font-weight: 600; }
+.level.stop .lv-value { color: var(--negative); }
+.level.t1 .lv-value { color: var(--warn); }
+.level.t2 .lv-value { color: var(--accent); }
+
+/* ② 보유 종목 */
+.holding-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 14px;
+}
+.holding-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 18px 20px;
+}
+.holding-card .top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 4px;
+}
+.holding-card .stock-name { font-size: 17px; font-weight: 700; }
+.holding-card .stock-code { font-size: 12px; color: var(--text-dim); margin-left: 6px; }
+.holding-card .cur-ret { font-size: 18px; font-weight: 700; }
+.holding-card .sub-row {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-bottom: 12px;
+}
+.partial-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--warn);
+  background: rgba(251, 191, 36, 0.12);
+  border: 1px solid rgba(251, 191, 36, 0.4);
+  border-radius: 5px;
+  padding: 1px 7px;
+  margin-left: 6px;
+}
+.pos { color: var(--accent); }
+.neg { color: var(--negative); }
+
+/* ③ 전략 + 통계 */
+.strategy-row {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 16px;
+  align-items: start;
+}
+.strategy-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 22px;
+}
+.strategy-card h2 { margin-bottom: 12px; }
+.strategy-card h3 {
+  font-size: 13px;
+  color: var(--text);
+  margin: 12px 0 6px;
+}
+.strategy-card ul { padding-left: 18px; }
+.strategy-card li { font-size: 13px; color: var(--text-dim); margin-bottom: 4px; }
+.strategy-card li strong { color: var(--text); font-weight: 600; }
+.strategy-card .note {
+  font-size: 11.5px;
+  color: var(--text-dim);
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+}
+.stat-card .label {
+  font-size: 11.5px;
+  color: var(--text-dim);
+  display: block;
+  margin-bottom: 4px;
+}
+.stat-card .value { font-size: 20px; font-weight: 700; }
+.stat-card .value.green { color: var(--accent); }
+.stat-card .sub { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+
+/* ④⑤ 테이블 */
+.toggle-group { display: flex; gap: 8px; margin-bottom: 12px; }
+.toggle-btn {
+  background: var(--surface);
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 7px 16px;
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+}
+.toggle-btn.active {
+  color: var(--accent);
+  border-color: var(--accent-dim);
+  background: rgba(74, 222, 128, 0.08);
+}
+.table-wrap {
+  overflow-x: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td {
+  text-align: right;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+th {
+  font-size: 11.5px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: rgba(0, 0, 0, 0.15);
+}
+th:first-child, td:first-child,
+th:nth-child(2), td:nth-child(2) { text-align: left; }
+tbody tr:last-child td { border-bottom: none; }
+tbody tr:hover { background: var(--surface-hover); }
+td.reason-cell { font-size: 12px; color: var(--text-dim); }
+
+footer {
+  margin-top: 40px;
+  font-size: 12px;
+  color: var(--text-dim);
+  text-align: center;
+}
+
+@media (max-width: 760px) {
+  body { padding: 24px 14px; }
+  header h1 { font-size: 22px; }
+  .strategy-row { grid-template-columns: 1fr; }
+}

@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KOSPI 52주 신고가 주도주 스크리너</title>
+  <link rel="stylesheet" href="style.css?v=260704" />
+</head>
+<body>
+  <header>
+    <a class="back-link" href="../index.html">← 홈으로</a>
+    <h1>52주 신고가 주도주 스크리너 <span class="krx-badge">KRX 주봉 기준</span></h1>
+    <p class="subtitle">
+      매주 금요일 장 마감 후 · 거래대금 상위 10위 · 시총 30~50위 · 52주 신고가 종가 마감
+    </p>
+    <p class="updated" id="updated-at">불러오는 중…</p>
+  </header>
+
+  <!-- ① 이번 주 매수 신호 -->
+  <section class="signal-section" id="signal-section">
+    <h2>🔔 이번 주 매수 신호 <span class="week-label" id="signal-week"></span></h2>
+    <div id="signal-body"></div>
+  </section>
+
+  <!-- ② 보유 중인 종목 -->
+  <section id="holdings-section">
+    <h2>📌 보유 중인 종목 <span class="count-label" id="holdings-count"></span></h2>
+    <div id="holdings-body"></div>
+  </section>
+
+  <!-- ③ 전략 설명 + 요약 통계 -->
+  <section class="strategy-row">
+    <div class="strategy-card">
+      <h2>전략 규칙</h2>
+      <h3>매수 — 금요일 종가 (조건 모두 충족 시)</h3>
+      <ul>
+        <li>코스피 <strong>주간 거래대금 합계 상위 10위</strong> 이내</li>
+        <li>주봉 종가가 <strong>직전 51개 주봉 고가 최대값 돌파</strong> (52주 신고가 종가 마감)</li>
+        <li>해당일 코스피 <strong>시가총액 30~50위</strong></li>
+      </ul>
+      <h3>매도</h3>
+      <ul>
+        <li><strong>+45% 터치</strong> 시 보유량 절반 익절 (1차 목표가)</li>
+        <li>잔여분: <strong>-30% 터치 손절</strong> / <strong>+90% 터치 익절</strong> (2차 목표가)</li>
+        <li>미도달 시 <strong>진입 3개월 후</strong> 첫 거래일 종가 청산</li>
+        <li>보유 중 재신호 무시 (동일 종목 중복 보유 없음)</li>
+      </ul>
+      <p class="note">수수료·거래세·슬리피지 미반영 · 종목당 동일금액 투입 가정 · 상장폐지 종목 포함(생존편향 없음)</p>
+    </div>
+    <div class="stats-grid" id="stats-grid"></div>
+  </section>
+
+  <!-- ④ 연별 / 분기별 성과 -->
+  <section id="period-section">
+    <h2>기간별 성과 <span class="count-label">(매도일 기준)</span></h2>
+    <div class="toggle-group" id="period-toggle">
+      <button class="toggle-btn active" data-mode="yearly">연별</button>
+      <button class="toggle-btn" data-mode="quarterly">분기별</button>
+    </div>
+    <div class="table-wrap">
+      <table id="period-table">
+        <thead>
+          <tr><th>기간</th><th>청산</th><th>승률</th><th>평균 수익률</th><th>수익률 합계</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ⑤ 전체 매매 이력 -->
+  <section id="history-section">
+    <h2>전체 매매 이력 <span class="count-label" id="history-count"></span></h2>
+    <div class="table-wrap">
+      <table id="history-table">
+        <thead>
+          <tr>
+            <th>매수일</th><th>종목</th><th>매수가</th><th>매도일</th>
+            <th>보유일</th><th>청산 사유</th><th>수익률</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer>
+    데이터 출처: KRX (marcap) · 본 데이터는 투자 참고용이며 투자 권유가 아닙니다.
+  </footer>
+
+  <script src="app.js?v=260704"></script>
+</body>
+</html>

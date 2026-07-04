@@ -7,3 +7,5 @@ momentum_screener.csv
 backtest_equity.csv
 backtest_summary.csv
 backfill_reports.json
+kr_backtest/data/
+kr_backtest/*.csv
