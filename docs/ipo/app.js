@@ -314,18 +314,15 @@ function render() {
         }건`
       : "";
 
-  // 테이블 렌더링 (신호 없는 종목도 표시, 정렬: 매수일 → 상장일)
-  const sorted = [...results].sort((a, b) => {
-    const as = a.result.status === "no_signal" ? 1 : 0;
-    const bs = b.result.status === "no_signal" ? 1 : 0;
-    if (as !== bs) return as - bs;
+  // 테이블 렌더링 (매수 신호가 발생한 종목만, 매수일순 정렬)
+  const sorted = [...signaled].sort((a, b) => {
     const da = a.result.buyDate || a.stock.ipo_date;
     const db = b.result.buyDate || b.stock.ipo_date;
     return da < db ? -1 : da > db ? 1 : 0;
   });
 
   const rows = sorted.map(({ stock, result }) => buildRow(stock, result)).join("");
-  setBody(rows || '<tr><td colspan="11" class="empty">해당 조건의 결과 없음</td></tr>');
+  setBody(rows || '<tr><td colspan="11" class="empty">해당 조건에 매수 신호가 발생한 종목이 없습니다</td></tr>');
 }
 
 function buildRow(stock, r) {
