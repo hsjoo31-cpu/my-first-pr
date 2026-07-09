@@ -32,10 +32,20 @@ def get_kind_listing(market_type: str, market_label: str) -> pd.DataFrame:
     """
     url = "http://kind.krx.co.kr/corpgeneral/corpList.do"
     params = {"method": "download", "searchType": "13", "marketType": market_type}
-    resp = requests.get(url, params=params, headers=HEADERS, timeout=20)
-    df = pd.read_html(io.StringIO(resp.content.decode("euc-kr")))[0]
-    df["Market"] = market_label
-    return df
+    # KIND는 간헐적으로 타임아웃·연결 거부가 발생 → 재시도 (CI 실패의 주원인)
+    last_err: Exception | None = None
+    for attempt in range(1, 4):
+        try:
+            resp = requests.get(url, params=params, headers=HEADERS, timeout=30)
+            resp.raise_for_status()
+            df = pd.read_html(io.StringIO(resp.content.decode("euc-kr")))[0]
+            df["Market"] = market_label
+            return df
+        except Exception as e:
+            last_err = e
+            print(f"  KIND {market_label} 요청 실패 ({attempt}/3): {e}")
+            time.sleep(10 * attempt)
+    raise RuntimeError(f"KIND {market_label} 목록 조회 3회 실패") from last_err
 
 
 def get_listing_df() -> pd.DataFrame:
@@ -60,6 +70,8 @@ def get_listing_df() -> pd.DataFrame:
     df["ticker"] = df["ticker"].astype(str).str.zfill(6)
     df["ipo_date"] = pd.to_datetime(df["ipo_date"], errors="coerce")
     df = df[df["ipo_date"] >= IPO_START].copy()
+    # KIND 목록에 같은 종목이 중복 수록되는 경우가 있음 (예: 조선내화)
+    df = df.drop_duplicates(subset="ticker", keep="first")
     df = df.sort_values("ipo_date").reset_index(drop=True)
     print(f"  KIND 상장 목록: {len(df)}개 "
           f"(KOSPI {(df['Market']=='KOSPI').sum()}, "
