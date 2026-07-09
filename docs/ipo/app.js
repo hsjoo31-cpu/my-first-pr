@@ -43,10 +43,29 @@ async function loadData() {
     }).filter((s) => s.prices.length > 0);
     document.getElementById("updated-at").textContent = data.updated_at || "—";
     document.getElementById("total-count").textContent = allStocks.length + "개";
+    renderLatestIpo();
     render();
   } catch (e) {
     setBody(`<tr><td colspan="11" class="empty">데이터를 불러올 수 없습니다: ${e.message}</td></tr>`);
   }
+}
+
+// 데이터 기준 가장 최근 상장일의 종목들을 헤더에 표시
+// (매일 자동 갱신 시 새 종목이 추가되면 자동으로 바뀜)
+function renderLatestIpo() {
+  const wrap = document.getElementById("latest-ipo");
+  const names = document.getElementById("latest-ipo-names");
+  if (!wrap || !names || !allStocks.length) return;
+  const latestDate = allStocks.reduce(
+    (max, s) => (s.ipo_date > max ? s.ipo_date : max),
+    allStocks[0].ipo_date
+  );
+  const latest = allStocks.filter((s) => s.ipo_date === latestDate);
+  names.innerHTML =
+    latest
+      .map((s) => `<strong>${esc(s.name)}</strong> (${esc(s.market)})`)
+      .join(", ") + ` · ${latestDate} 상장`;
+  wrap.hidden = false;
 }
 
 // ──────────────────────────────────────────
