@@ -325,6 +325,25 @@ function render() {
       ? ((losses.length / completed.length) * 100).toFixed(1) + "%"
       : "—";
 
+  // 누적수익률 (완료 거래 수익률 단순 합)
+  const cumReturn =
+    returns.length > 0 ? returns.reduce((a, b) => a + b, 0) : null;
+  const cumEl = document.getElementById("cum-return");
+  cumEl.textContent = cumReturn != null ? fmt(cumReturn) : "—";
+  cumEl.className = "value " + (cumReturn >= 0 ? "positive" : "negative");
+
+  // 동시보유 최대 종목수 + 연도별 성과
+  // (보유구간: 매수일 ~ 매도일, 진행중이면 데이터 마지막 날)
+  const trades = signaled.map(({ stock, result }) => ({
+    buyDate: result.buyDate,
+    endDate: result.sellDate || stock.prices[stock.prices.length - 1].d,
+    returnPct: result.returnPct != null ? result.returnPct : null,
+  }));
+  document.getElementById("peak-holdings").textContent = trades.length
+    ? peakConcurrent(trades.map((t) => [t.buyDate, t.endDate])) + "종목"
+    : "—";
+  renderYearlyTable(trades);
+
   const note = document.getElementById("results-note");
   note.textContent =
     signaled.length > 0
@@ -342,6 +361,66 @@ function render() {
 
   const rows = sorted.map(({ stock, result }) => buildRow(stock, result)).join("");
   setBody(rows || '<tr><td colspan="11" class="empty">해당 조건에 매수 신호가 발생한 종목이 없습니다</td></tr>');
+}
+
+function nextDay(dateStr) {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d + 1)).toISOString().slice(0, 10);
+}
+
+// 구간 [매수일, 종료일](양끝 포함)들의 최대 동시 겹침 수 — 이벤트 스위프
+function peakConcurrent(intervals) {
+  const events = [];
+  for (const [b, e] of intervals) {
+    events.push([b, 1], [nextDay(e), -1]);
+  }
+  // 같은 날짜면 -1(청산)을 +1(매수)보다 먼저 적용
+  events.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : a[1] - b[1]));
+  let cur = 0, peak = 0;
+  for (const ev of events) {
+    cur += ev[1];
+    if (cur > peak) peak = cur;
+  }
+  return peak;
+}
+
+// 연도별(매수일 기준) 매수 종목수 · 동시보유 최대 · 누적/평균 수익률
+function renderYearlyTable(trades) {
+  const body = document.getElementById("yearly-body");
+  if (!trades.length) {
+    body.innerHTML =
+      '<tr><td colspan="5" class="empty">해당 조건에 매수 신호가 발생한 종목이 없습니다</td></tr>';
+    return;
+  }
+  const years = [...new Set(trades.map((t) => t.buyDate.slice(0, 4)))].sort();
+  const pctCell = (v) =>
+    v != null
+      ? `<td class="num ${v >= 0 ? "positive" : "negative"}">${fmt(v)}</td>`
+      : '<td class="num">—</td>';
+
+  body.innerHTML = years
+    .map((y) => {
+      const bought = trades.filter((t) => t.buyDate.slice(0, 4) === y);
+      const rets = bought.map((t) => t.returnPct).filter((v) => v != null);
+      const cum = rets.length ? rets.reduce((a, b) => a + b, 0) : null;
+      const avg = rets.length ? cum / rets.length : null;
+      // 해당 연도 중 실제로 보유 중이던 모든 포지션(이월 포함)의 최대 겹침
+      const yStart = y + "-01-01", yEnd = y + "-12-31";
+      const clipped = trades
+        .filter((t) => t.buyDate <= yEnd && t.endDate >= yStart)
+        .map((t) => [
+          t.buyDate > yStart ? t.buyDate : yStart,
+          t.endDate < yEnd ? t.endDate : yEnd,
+        ]);
+      return `<tr>
+        <td><strong>${y}</strong></td>
+        <td class="num">${bought.length}종목</td>
+        <td class="num">${peakConcurrent(clipped)}종목</td>
+        ${pctCell(cum)}
+        ${pctCell(avg)}
+      </tr>`;
+    })
+    .join("");
 }
 
 function buildRow(stock, r) {

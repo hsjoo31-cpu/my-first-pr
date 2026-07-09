@@ -119,12 +119,43 @@
       <span class="value" id="avg-return">—</span>
     </div>
     <div class="meta-card">
+      <span class="label">누적 수익률 <span class="ctrl-hint">(완료 거래 단순 합)</span></span>
+      <span class="value" id="cum-return">—</span>
+    </div>
+    <div class="meta-card">
+      <span class="label">동시보유 최대</span>
+      <span class="value" id="peak-holdings">—</span>
+    </div>
+    <div class="meta-card">
       <span class="label">손절률</span>
       <span class="value negative" id="losscut-rate">—</span>
     </div>
     <div class="meta-card">
       <span class="label">업데이트</span>
       <span class="value small" id="updated-at">—</span>
+    </div>
+  </section>
+
+  <!-- ── 연도별 성과 ── -->
+  <section class="results yearly">
+    <div class="results-header">
+      <h2>연도별 성과 <span class="results-note">(매수일 기준 · 누적/평균은 완료 거래 기준)</span></h2>
+    </div>
+    <div class="table-wrap">
+      <table id="yearly-table">
+        <thead>
+          <tr>
+            <th>연도</th>
+            <th class="num">매수 종목수</th>
+            <th class="num">동시보유 최대</th>
+            <th class="num">누적수익률</th>
+            <th class="num">평균수익률</th>
+          </tr>
+        </thead>
+        <tbody id="yearly-body">
+          <tr><td colspan="5" class="empty">데이터 로딩 중…</td></tr>
+        </tbody>
+      </table>
     </div>
   </section>
 
@@ -167,6 +198,6 @@
     <p>가격 데이터: <strong>KRX 정규장 기준</strong> (네이버 금융 일봉 · 09:00~15:30 · NXT 미포함)</p>
   </footer>
 
-  <script src="app.js?v=260710"></script>
+  <script src="app.js?v=260710b"></script>
 </body>
 </html>
