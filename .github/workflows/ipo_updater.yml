@@ -2,8 +2,8 @@ name: IPO Data Updater
 
 on:
   schedule:
-    # 매주 월요일 KST 08:00 (UTC 23:00 일요일) 업데이트
-    - cron: "0 23 * * 0"
+    # 매일 KST 08:00 (UTC 23:00) 업데이트 — 전일 종가까지 반영
+    - cron: "0 23 * * *"
   workflow_dispatch:
 
 permissions:
