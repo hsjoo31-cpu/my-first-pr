@@ -4,14 +4,14 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>포스트 IPO 백테스터</title>
-  <link rel="stylesheet" href="style.css?v=260609" />
+  <link rel="stylesheet" href="style.css?v=260709" />
 </head>
 <body>
   <header>
     <a class="back-link" href="../index.html">← 홈으로</a>
     <h1>포스트 IPO 전략 백테스터 <span class="krx-badge">KRX 정규장 기준</span></h1>
     <p class="subtitle">
-      2023.06.26 이후 상장 · KOSPI/KOSDAQ · 공모가/시초가 대비 하락 매수 · 목표수익률별 성과
+      2023.06.26 이후 상장 · KOSPI/KOSDAQ · 리츠/스팩 제외 · 공모가/시초가 대비 하락 매수 · 목표수익률별 성과
     </p>
   </header>
 
@@ -125,22 +125,6 @@
     </div>
   </section>
 
-  <!-- ── 추천 전략 ── -->
-  <section class="reco">
-    <div class="reco-header">
-      <h2>추천 전략 — 보유기간별 평균·누적 수익률 TOP 5 <span class="reco-sub">(현재 매수 기회 기간 기준)</span></h2>
-      <span class="reco-status" id="reco-status"></span>
-    </div>
-    <p class="reco-desc">
-      <strong>평균</strong>: 완료 거래 1건당 평균 수익률(거래 품질). ·
-      <strong>누적</strong>: 모든 완료 거래 수익률의 단순 합(단리) — 거래가 많을수록 커지므로
-      "동시최대 N종목"(필요 분산)과 함께 보세요.
-    </p>
-    <div class="reco-cards" id="reco-cards">
-      <div class="reco-card placeholder">계산 준비 중…</div>
-    </div>
-  </section>
-
   <!-- ── 결과 테이블 ── -->
   <section class="results">
     <div class="results-header">
@@ -180,6 +164,6 @@
     <p>가격 데이터: <strong>KRX 정규장 기준</strong> (네이버 금융 일봉 · 09:00~15:30 · NXT 미포함)</p>
   </footer>
 
-  <script src="app.js?v=260609c"></script>
+  <script src="app.js?v=260709"></script>
 </body>
 </html>

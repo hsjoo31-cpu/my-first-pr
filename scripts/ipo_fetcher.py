@@ -72,6 +72,13 @@ def get_listing_df() -> pd.DataFrame:
     df = df[df["ipo_date"] >= IPO_START].copy()
     # KIND 목록에 같은 종목이 중복 수록되는 경우가 있음 (예: 조선내화)
     df = df.drop_duplicates(subset="ticker", keep="first")
+    # 리츠·스팩은 일반 IPO 전략 대상이 아님 → 제외
+    name_s = df["name"].astype(str)
+    is_excluded = name_s.str.contains("스팩") | name_s.str.endswith("리츠")
+    n_excluded = int(is_excluded.sum())
+    if n_excluded:
+        print(f"  리츠·스팩 제외: {n_excluded}개")
+    df = df[~is_excluded]
     df = df.sort_values("ipo_date").reset_index(drop=True)
     print(f"  KIND 상장 목록: {len(df)}개 "
           f"(KOSPI {(df['Market']=='KOSPI').sum()}, "
