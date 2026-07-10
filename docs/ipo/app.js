@@ -265,7 +265,9 @@ function backtestStock(stock, p = params) {
   }
   if (buyIdx === -1) return { status: "no_signal" };
 
-  const buyPrice = buyTrigger;
+  // 체결가: 그날 시초가가 트리거가(목표 매수가)보다 낮으면(갭하락 등) 시초가에 체결.
+  // 그렇지 않으면(장중에 내려와 터치) 트리거가에 체결. → 현실적 평단가.
+  const buyPrice = Math.min(buyTrigger, prices[buyIdx].o);
   const buyDate = prices[buyIdx].d;
   const targetSellPrice =
     p.target > 0 ? buyPrice * (1 + p.target / 100) : Infinity;
