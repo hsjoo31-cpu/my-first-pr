@@ -166,8 +166,12 @@ function fmtPrice(n) {
  *   status: "no_signal" | "ongoing" | "target" | "losscut" | "expired" | "ambiguous"
  */
 function backtestStock(stock, p = params) {
+  // 공모가 기준: 일봉이 수정주가이므로 무상증자·분할 배율로 조정한 공모가(ipo_price_adj)를 사용.
+  // (없으면 명목 공모가. 시초가 기준은 시초가·일봉 모두 수정주가라 그대로 사용)
   const refPrice =
-    p.reference === "ipo_price" ? stock.ipo_price : stock.listing_open;
+    p.reference === "ipo_price"
+      ? (stock.ipo_price_adj ?? stock.ipo_price)
+      : stock.listing_open;
 
   if (!refPrice) return { status: "no_signal", reason: "기준가 없음" };
 

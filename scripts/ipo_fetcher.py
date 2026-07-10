@@ -222,13 +222,14 @@ def get_finuts_ipo_prices() -> dict[str, int]:
     return date_map
 
 
-def get_38_ipo_prices() -> dict[str, list[tuple[str, int]]]:
+def get_38_ipo_data() -> dict[str, list[tuple[str, int, int]]]:
     """
-    38커뮤니케이션 신규상장 목록에서 {상장일: [(회사명, 공모가), ...]}을 반환.
+    38커뮤니케이션 신규상장 목록에서 {상장일: [(회사명, 공모가, 명목시초가), ...]}을 반환.
     finuts는 롤링 윈도우라 옛 종목이 빠지지만 38은 과거까지 커버 → 보완 소스.
-    (컬럼: 종목명 | 상장일 | 현재가 | 등락 | 공모가 | ... )
+    명목 시초가는 수정주가 보정용(수정 시초가 대비 배율 산출).
+    (컬럼: 종목명 | 상장일 | 현재가 | 등락 | 공모가 | 공모가대비 | 시초가 | ... )
     """
-    date_map: dict[str, list[tuple[str, int]]] = {}
+    date_map: dict[str, list[tuple[str, int, int]]] = {}
     try:
         for page in range(1, 26):
             url = f"http://www.38.co.kr/html/fund/index.htm?o=nw&page={page}"
@@ -249,9 +250,11 @@ def get_38_ipo_prices() -> dict[str, list[tuple[str, int]]]:
                 if not digits:
                     continue
                 price = int(digits)
+                open_digits = re.sub(r"[^\d]", "", tds[6])
+                open_px = int(open_digits) if open_digits else 0
                 if price > 0:
                     d = f"{m.group(1)}-{m.group(2)}-{m.group(3)}"
-                    date_map.setdefault(d, []).append((tds[0], price))
+                    date_map.setdefault(d, []).append((tds[0], price, open_px))
                     got += 1
             if got == 0:
                 break
@@ -262,9 +265,26 @@ def get_38_ipo_prices() -> dict[str, list[tuple[str, int]]]:
     return date_map
 
 
+def find_38(date_map_38: dict, ipo_date: str, name: str):
+    """38 date_map({상장일: [(회사명, 공모가, 명목시초가)]})에서 종목 레코드를 찾아 반환."""
+    candidates = date_map_38.get(ipo_date, [])
+    if not candidates:
+        return None
+    if len(candidates) == 1:
+        return candidates[0]
+    nn = _norm_name(name)
+    for c in candidates:
+        if _norm_name(c[0]) == nn:
+            return c
+    for c in candidates:
+        if _norm_name(c[0]) in nn or nn in _norm_name(c[0]):
+            return c
+    return None
+
+
 def match_ipo_price(date_map: dict, ipo_date: str, name: str) -> int | None:
     """
-    공모가 date_map({상장일: [(회사명, 공모가)]})과 (상장일, 회사명)으로 공모가 매핑.
+    공모가 date_map({상장일: [(회사명, 공모가, ...)]})과 (상장일, 회사명)으로 공모가 매핑.
     같은 날 1개면 바로 반환, 여러 개면 이름 유사도로 매핑.
     """
     candidates = date_map.get(ipo_date, [])
@@ -334,7 +354,7 @@ def main():
     # ── 공모가 ── (finuts + 38커뮤니케이션 이중 소스)
     print("\n[2/3] 공모가 수집 (finuts.co.kr + 38.co.kr)...")
     date_map = get_finuts_ipo_prices()
-    date_map_38 = get_38_ipo_prices()
+    date_map_38 = get_38_ipo_data()
 
     # 기존 데이터에서 공모가 보존
     existing: dict[str, dict] = {}
@@ -379,14 +399,24 @@ def main():
             print(" → 비공모 상장(제외)")
             continue
 
+        # 수정주가 보정: 일봉이 수정주가(무상증자·분할)이므로, 명목 공모가를
+        # 동일 배율(수정시초/명목시초)로 조정한 값을 공모가 기준 백테스트용으로 저장.
+        ipo_price_adj = ipo_price
+        rec38 = find_38(date_map_38, ipo_date, name)
+        if ipo_price and rec38 and rec38[2] > 0:
+            ratio = listing_open / rec38[2]
+            if ratio < 0.95:
+                ipo_price_adj = round(ipo_price * ratio)
+
         stocks.append({
-            "ticker":       ticker,
-            "name":         name,
-            "market":       market,
-            "ipo_date":     ipo_date,
-            "ipo_price":    ipo_price,
-            "listing_open": listing_open,
-            "prices":       prices,
+            "ticker":        ticker,
+            "name":          name,
+            "market":        market,
+            "ipo_date":      ipo_date,
+            "ipo_price":     ipo_price,
+            "ipo_price_adj": ipo_price_adj,
+            "listing_open":  listing_open,
+            "prices":        prices,
         })
         flag = f"공모가 {ipo_price:,}" if ipo_price else "공모가 ?"
         print(f" → {len(prices)}일 / {flag} / 시초가 {listing_open:,}")
