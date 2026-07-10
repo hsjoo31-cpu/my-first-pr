@@ -172,27 +172,31 @@ input[type="number"]:focus { outline: 2px solid var(--accent); }
 /* ── Summary cards ── */
 .meta {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(108px, 1fr));
+  gap: 8px;
   margin-bottom: 20px;
 }
 .meta-card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 14px 16px;
+  border-radius: 10px;
+  padding: 10px 12px;
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 4px;
+  min-width: 0;
 }
 .meta-card .label {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--text-dim);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.meta-card .value { font-size: 18px; font-weight: 600; }
-.meta-card .value.small { font-size: 13px; font-weight: 400; color: var(--text-dim); }
+.meta-card .value { font-size: 16px; font-weight: 600; white-space: nowrap; }
+.meta-card .value.small { font-size: 12px; font-weight: 400; color: var(--text-dim); }
 .meta-card .value.highlight { color: var(--accent); }
 .meta-card .value.positive { color: var(--accent); }
 .meta-card .value.negative { color: var(--negative); }
