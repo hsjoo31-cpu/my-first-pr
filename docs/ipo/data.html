@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>포스트 IPO 데이터 관리</title>
+  <link rel="stylesheet" href="style.css?v=260710e" />
+</head>
+<body>
+  <header>
+    <nav class="top-nav">
+      <a class="back-link" href="../index.html">← 홈으로</a>
+      <a class="back-link" href="index.html">← 백테스터로</a>
+    </nav>
+    <h1>포스트 IPO 데이터 관리 <span class="update-note">업데이트 <span id="updated-at">—</span></span></h1>
+    <p class="subtitle">
+      전체 종목 최신 상장순 · 확약해제일(15일·1개월·3개월·6개월)별 종가 ·
+      해제일이 휴장일이면 이후 첫 거래일 종가 기준
+    </p>
+  </header>
+
+  <section class="results">
+    <div class="results-header">
+      <h2>전체 종목 <span class="results-note" id="stock-count"></span></h2>
+    </div>
+    <div class="table-wrap">
+      <table id="data-table">
+        <thead>
+          <tr>
+            <th>종목명</th>
+            <th>거래소</th>
+            <th class="num">상장일</th>
+            <th class="num">공모가</th>
+            <th class="num">상장일 시초가</th>
+            <th class="num">15일 해제</th>
+            <th class="num">1개월 해제</th>
+            <th class="num">3개월 해제</th>
+            <th class="num">6개월 해제</th>
+          </tr>
+        </thead>
+        <tbody id="data-body">
+          <tr><td colspan="9" class="empty">데이터 로딩 중…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer>
+    <p>확약해제일 종가: 해제일 당일이 거래일이 아니면 그 이후 첫 거래일의 종가. ‘미도래’는 아직 해제일이 오지 않은 경우.</p>
+    <p>본 데이터는 투자 참고용이며 투자 권유가 아닙니다.</p>
+  </footer>
+
+  <script src="data.js?v=260710"></script>
+</body>
+</html>

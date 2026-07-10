@@ -25,6 +25,7 @@ body {
 }
 
 /* ── Header ── */
+.top-nav { display: flex; gap: 18px; }
 .back-link {
   display: inline-block;
   font-size: 13px;
@@ -33,6 +34,7 @@ body {
   margin-bottom: 12px;
 }
 .back-link:hover { color: var(--accent); }
+.dim { color: var(--text-dim); }
 
 header { margin-bottom: 28px; }
 header h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 6px; }
