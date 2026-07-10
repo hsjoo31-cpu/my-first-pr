@@ -76,6 +76,80 @@ header h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; margin-b
   white-space: nowrap;
 }
 
+/* ── Targeting (확약해제일) ── */
+.targeting {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 18px 24px;
+  margin-bottom: 14px;
+}
+.targeting-head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.targeting-head h2,
+.controls-head h2 {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.targeting-range {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+  background: rgba(74, 222, 128, 0.1);
+  border: 1px solid var(--accent-dim);
+  border-radius: 8px;
+  padding: 3px 12px;
+}
+.targeting-range.pending {
+  color: var(--warning);
+  background: rgba(251, 191, 36, 0.1);
+  border-color: rgba(251, 191, 36, 0.4);
+  font-weight: 400;
+}
+.anchor-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.anchor {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.anchor:hover { background: var(--surface-hover); color: var(--text); }
+.anchor.in-range {
+  color: var(--text);
+  border-color: var(--accent-dim);
+  background: rgba(74, 222, 128, 0.06);
+}
+.anchor.active {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  color: #fff;
+  font-weight: 700;
+}
+.targeting-note {
+  font-size: 12px;
+  color: var(--text-dim);
+  line-height: 1.6;
+}
+.targeting-note strong { color: var(--text); }
+
 /* ── Controls ── */
 .controls {
   background: var(--surface);
@@ -87,6 +161,7 @@ header h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; margin-b
   flex-direction: column;
   gap: 16px;
 }
+.controls-head { margin-bottom: -2px; }
 
 .control-row {
   display: flex;

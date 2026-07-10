@@ -7,13 +7,25 @@ let allStocks = [];
 
 const LC_STEP = 5; // 손절 기준 단위(입력란)
 
+// 타게팅 기간 앵커 — 확약해제일 기준 (상장일 포함 5지점, 시간순)
+const ANCHORS = [
+  { key: "listing", label: "상장일",        date: (s) => s.ipo_date },
+  { key: "d15",     label: "15일 확약해제",  date: (s) => addDays(s.ipo_date, 15) },
+  { key: "m1",      label: "1개월 확약해제", date: (s) => addMonths(s.ipo_date, 1) },
+  { key: "m3",      label: "3개월 확약해제", date: (s) => addMonths(s.ipo_date, 3) },
+  { key: "m6",      label: "6개월 확약해제", date: (s) => addMonths(s.ipo_date, 6) },
+];
+const ANCHOR_ORDER = Object.fromEntries(ANCHORS.map((a, i) => [a.key, i]));
+const anchorLabel = (k) => ANCHORS.find((a) => a.key === k).label;
+const anchorDate = (k, s) => ANCHORS.find((a) => a.key === k).date(s);
+
 const params = {
   reference: "listing_open", // "listing_open" | "ipo_price"
   n: 20,                     // 매수 하락률 (%)
   losscut: 10,               // 손절 기준 (%, 0 = 없음)
-  holdingMonths: 3,          // 최대 보유기간 (개월)
   target: 20,                // 목표수익률 (%)
-  buyWindow: 0,              // 매수 기회 기간 (상장 후 N개월, 0 = 무제한)
+  // 타게팅 기간: 시작 앵커일부터 매수 탐색, 종료 앵커일 전일 종가까지 보유
+  targeting: { start: "listing", end: "m3" },
 };
 
 // ──────────────────────────────────────────
@@ -97,25 +109,68 @@ function bindControls() {
     render();
   });
 
-  // 최대 보유기간 탭
-  bindTabs("holding-tabs", (val) => {
-    params.holdingMonths = +val;
-    render();
-  });
-
   // 목표수익률 탭
   bindTabs("target-tabs", (val) => {
     params.target = +val;
     render();
   });
 
-  // 매수 기회 기간 (상장 후 N개월)
-  const buyWindowInput = document.getElementById("buywindow-input");
-  buyWindowInput.addEventListener("change", () => {
-    params.buyWindow = Math.max(0, Math.min(48, +buyWindowInput.value || 0));
-    buyWindowInput.value = params.buyWindow;
-    render();
+  // 타게팅 기간 앵커 선택 (2개 선택 = 시작~종료)
+  bindTargeting();
+}
+
+// 타게팅 기간: 5개 앵커 중 2개를 클릭해 시작~종료 구간 지정.
+// 2개 선택되면 시간순 정렬해 params.targeting에 반영하고 렌더.
+// 1개만 선택된 중간 상태에서는 이전 구간 결과 유지.
+let anchorSel = ["listing", "m3"];
+function bindTargeting() {
+  const group = document.getElementById("anchor-tabs");
+  group.querySelectorAll(".anchor").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const key = btn.dataset.key;
+      const i = anchorSel.indexOf(key);
+      if (i >= 0) {
+        anchorSel.splice(i, 1);            // 이미 선택 → 해제
+      } else if (anchorSel.length < 2) {
+        anchorSel.push(key);               // 추가
+      } else {
+        anchorSel = [key];                 // 2개 꽉 참 → 새로 시작
+      }
+      applyTargeting();
+    });
   });
+  applyTargeting();
+}
+
+function applyTargeting() {
+  const group = document.getElementById("anchor-tabs");
+  const rangeEl = document.getElementById("targeting-range");
+  const ready = anchorSel.length === 2;
+  let startK, endK;
+  if (ready) {
+    const sorted = [...anchorSel].sort((a, b) => ANCHOR_ORDER[a] - ANCHOR_ORDER[b]);
+    [startK, endK] = sorted;
+    params.targeting = { start: startK, end: endK };
+  }
+  group.querySelectorAll(".anchor").forEach((btn) => {
+    const k = btn.dataset.key;
+    const sel = anchorSel.includes(k);
+    const inRange =
+      ready && ANCHOR_ORDER[k] > ANCHOR_ORDER[startK] && ANCHOR_ORDER[k] < ANCHOR_ORDER[endK];
+    btn.classList.toggle("active", sel);
+    btn.classList.toggle("in-range", inRange);
+  });
+  if (ready) {
+    rangeEl.textContent = `${anchorLabel(startK)} ~ ${anchorLabel(endK)}`;
+    rangeEl.classList.remove("pending");
+    render();
+  } else {
+    rangeEl.textContent =
+      anchorSel.length === 1
+        ? `${anchorLabel(anchorSel[0])} 선택됨 · 종료 지점을 하나 더 선택하세요`
+        : "시작·종료 두 지점을 선택하세요";
+    rangeEl.classList.add("pending");
+  }
 }
 
 function bindTabs(groupId, onChange) {
@@ -145,6 +200,11 @@ function addMonths(dateStr, months) {
   return base.toISOString().slice(0, 10);
 }
 
+function addDays(dateStr, days) {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
+}
+
 function daysBetween(d1, d2) {
   return Math.round((new Date(d2) - new Date(d1)) / 86400000);
 }
@@ -161,9 +221,11 @@ function fmtPrice(n) {
 }
 
 /**
- * 단일 종목 백테스트
- * @returns {object} result
- *   status: "no_signal" | "ongoing" | "target" | "losscut" | "expired" | "ambiguous"
+ * 단일 종목 백테스트 (타게팅 기간 방식)
+ *  - 기준가(상장일 시초가/공모가) 대비 n% 하락가에 매수
+ *  - 매수 탐색 구간: [시작 앵커일, 종료 앵커일)  ← 이 구간 밖의 매수타점은 제외
+ *  - 보유 한계: 종료 앵커일 '전일 종가'까지 (목표 미달 시 그 종가에 매도)
+ * @returns status: "no_signal" | "ongoing" | "target" | "losscut" | "expired" | "ambiguous"
  */
 function backtestStock(stock, p = params) {
   // 공모가 기준: 일봉이 수정주가이므로 무상증자·분할 배율로 조정한 공모가(ipo_price_adj)를 사용.
@@ -178,99 +240,72 @@ function backtestStock(stock, p = params) {
   const buyTrigger = refPrice * (1 - p.n / 100);
   const prices = stock.prices; // [{d,o,h,l,c}, ...]
 
-  // 매수 기회 기간: 상장일로부터 N개월 이내에 트리거가 발생해야 후보로 인정
-  const windowCutoff =
-    p.buyWindow > 0 ? addMonths(stock.ipo_date, p.buyWindow) : null;
+  const startDate = anchorDate(p.targeting.start, stock); // 매수 탐색 시작(포함)
+  const endDate = anchorDate(p.targeting.end, stock);     // 확약해제일(미포함, 전일까지 보유)
 
-  // ── 매수일 탐색 ──
-  let buyIdx = -1;
+  // 종료 앵커일 '전일'까지의 마지막 거래일 인덱스 (보유 한계)
+  let forcedSellIdx = -1;
   for (let i = 0; i < prices.length; i++) {
-    // 매수 기회 기간을 벗어나면 탐색 중단 → 후보 제외
-    if (windowCutoff && prices[i].d > windowCutoff) break;
+    if (prices[i].d < endDate) forcedSellIdx = i;
+    else break;
+  }
+  if (forcedSellIdx === -1) return { status: "no_signal" }; // 구간 이전 데이터뿐
+
+  // 종료 앵커일이 실제 도래했는지(데이터에 그 이후 거래일 존재) — 미도래면 진행중 처리
+  const endReached = prices[prices.length - 1].d >= endDate;
+
+  // ── 매수일 탐색: [startDate, endDate) 안에서 첫 트리거 ──
+  let buyIdx = -1;
+  for (let i = 0; i <= forcedSellIdx; i++) {
+    if (prices[i].d < startDate) continue;
     if (prices[i].l <= buyTrigger) {
       buyIdx = i;
       break;
     }
   }
-
   if (buyIdx === -1) return { status: "no_signal" };
 
   const buyPrice = buyTrigger;
   const buyDate = prices[buyIdx].d;
-  const sellCalendarDate = addMonths(buyDate, p.holdingMonths);
-
   const targetSellPrice =
     p.target > 0 ? buyPrice * (1 + p.target / 100) : Infinity;
   const losscutThreshold =
     p.losscut > 0 ? buyPrice * (1 - p.losscut / 100) : -Infinity;
 
-  // ── 매수일부터 시뮬레이션 ──
-  for (let i = buyIdx; i < prices.length; i++) {
+  // ── 매수일부터 보유 한계(forcedSellIdx)까지 시뮬레이션 ──
+  for (let i = buyIdx; i <= forcedSellIdx; i++) {
     const day = prices[i];
-
-    // 보유기간 만료 체크: 이 날의 날짜가 만료일 이상이면 시초가에 매도
-    // (buyIdx 당일은 만료 체크 제외 — 방금 산 날이므로)
-    if (i > buyIdx && day.d >= sellCalendarDate) {
-      const sellPct = ((day.o - buyPrice) / buyPrice) * 100;
-      return {
-        status: "expired",
-        buyDate,
-        sellDate: day.d,
-        daysHeld: daysBetween(buyDate, day.d),
-        returnPct: sellPct,
-        refPrice,
-        buyPrice,
-        sellPrice: day.o,
-      };
-    }
-
-    // 목표 / 손절 동시 발생 → 요확인
     const targetHit = day.h >= targetSellPrice;
-    const losscutHit =
-      p.losscut > 0 && day.c <= losscutThreshold;
+    const losscutHit = p.losscut > 0 && day.c <= losscutThreshold;
 
     if (targetHit && losscutHit) {
-      return {
-        status: "ambiguous",
-        buyDate,
-        sellDate: day.d,
-        daysHeld: daysBetween(buyDate, day.d),
-        returnPct: null,
-        refPrice,
-        buyPrice,
-        sellPrice: null,
-      };
+      return { status: "ambiguous", buyDate, sellDate: day.d,
+        daysHeld: daysBetween(buyDate, day.d), returnPct: null,
+        refPrice, buyPrice, sellPrice: null };
     }
-
     if (targetHit) {
-      return {
-        status: "target",
-        buyDate,
-        sellDate: day.d,
-        daysHeld: daysBetween(buyDate, day.d),
-        returnPct: p.target, // 목표가에 정확히 매도
-        refPrice,
-        buyPrice,
-        sellPrice: Math.round(targetSellPrice),
-      };
+      return { status: "target", buyDate, sellDate: day.d,
+        daysHeld: daysBetween(buyDate, day.d), returnPct: p.target,
+        refPrice, buyPrice, sellPrice: Math.round(targetSellPrice) };
     }
-
     if (losscutHit) {
-      const sellPct = ((day.c - buyPrice) / buyPrice) * 100;
-      return {
-        status: "losscut",
-        buyDate,
-        sellDate: day.d,
+      return { status: "losscut", buyDate, sellDate: day.d,
         daysHeld: daysBetween(buyDate, day.d),
-        returnPct: sellPct,
-        refPrice,
-        buyPrice,
-        sellPrice: day.c,
-      };
+        returnPct: ((day.c - buyPrice) / buyPrice) * 100,
+        refPrice, buyPrice, sellPrice: day.c };
     }
   }
 
-  // 데이터 부족 (아직 보유 중)
+  // 목표·손절 없이 보유 한계 도달
+  if (endReached) {
+    // 종료 확약해제일 전일 종가에 매도
+    const day = prices[forcedSellIdx];
+    return { status: "expired", buyDate, sellDate: day.d,
+      daysHeld: daysBetween(buyDate, day.d),
+      returnPct: ((day.c - buyPrice) / buyPrice) * 100,
+      refPrice, buyPrice, sellPrice: day.c };
+  }
+  // 종료 확약해제일 미도래 → 아직 보유 중
   return { status: "ongoing", buyDate, refPrice, buyPrice };
 }
 
@@ -434,7 +469,7 @@ function buildRow(stock, r) {
   const statusBadge = {
     target:    `<span class="badge badge-target">✅ 목표달성</span>`,
     losscut:   `<span class="badge badge-losscut">❌ 손절</span>`,
-    expired:   `<span class="badge badge-expired">⏱ 기간만료</span>`,
+    expired:   `<span class="badge badge-expired">⏱ 해제전 매도</span>`,
     ambiguous: `<span class="badge badge-ambig">⚠️ 요확인</span>`,
     ongoing:   `<span class="badge badge-ongoing">📌 진행중</span>`,
     no_signal: `<span class="badge badge-nosig">— 신호없음</span>`,
