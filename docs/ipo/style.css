@@ -64,6 +64,15 @@ header h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; margin-b
   padding: 4px 10px;
 }
 .latest-ipo strong { color: var(--accent); font-weight: 600; }
+.update-note {
+  vertical-align: middle;
+  margin-left: 10px;
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
 
 /* ── Controls ── */
 .controls {
