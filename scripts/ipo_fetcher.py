@@ -21,6 +21,19 @@ IPO_START = "2023-06-26"
 OUT = Path("docs/data/ipo_data.json")
 HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
 
+# 이 전략은 'IPO 공모청약 신규상장주' 기반이다.
+# 이전상장·재상장·분할신설·스팩합병·사명변경 등 공모청약을 거치지 않은 종목은 제외한다.
+# (1) KIND 상장방법으로 걸러내고, (2) 아래 티커는 명시적으로 항상 제외한다(안전장치).
+EXCLUDE_TICKERS = {
+    "0017J0", "0010F0", "0004V0", "493330", "0126Z0", "0120G0", "342870",
+    "397810", "462310", "455180", "125020", "101970", "460870", "478560",
+    "499790", "398120", "389680", "474610", "489790", "351870", "487570",
+    "034230", "323350", "475150", "420570", "452430", "443670", "472850",
+    "199550", "066970", "452190", "022100", "109670", "452160", "290560",
+    "188260", "221800", "403490", "465770", "146060", "355390", "030190",
+    "462520",
+}
+
 
 # ──────────────────────────────────────────
 # 1. KIND에서 상장 종목 목록 (상장일 포함)
@@ -72,18 +85,88 @@ def get_listing_df() -> pd.DataFrame:
     df = df[df["ipo_date"] >= IPO_START].copy()
     # KIND 목록에 같은 종목이 중복 수록되는 경우가 있음 (예: 조선내화)
     df = df.drop_duplicates(subset="ticker", keep="first")
-    # 리츠·스팩은 일반 IPO 전략 대상이 아님 → 제외
+    # 리츠·스팩(스팩 자체)은 일반 IPO 전략 대상이 아님 → 이름으로 제외
     name_s = df["name"].astype(str)
     is_excluded = name_s.str.contains("스팩") | name_s.str.endswith("리츠")
     n_excluded = int(is_excluded.sum())
     if n_excluded:
         print(f"  리츠·스팩 제외: {n_excluded}개")
     df = df[~is_excluded]
+    # 비공모 상장(이전상장·재상장·스팩합병 등)으로 확정된 티커 명시 제외
+    df = df[~df["ticker"].isin(EXCLUDE_TICKERS)]
     df = df.sort_values("ipo_date").reset_index(drop=True)
     print(f"  KIND 상장 목록: {len(df)}개 "
           f"(KOSPI {(df['Market']=='KOSPI').sum()}, "
           f"KOSDAQ {(df['Market']=='KOSDAQ').sum()})")
     return df
+
+
+def get_listing_methods() -> dict[tuple[str, str], str]:
+    """
+    KIND 신규상장현황에서 (상장일, 정규화이름) → 상장방법 매핑을 반환.
+    상장방법: '신규상장'(공모 IPO) / '이전상장' / '재상장' / ''(스팩합병·분할 등).
+    실패 시 빈 dict를 반환하며, 이 경우 상장방법 필터는 건너뛴다(데이터 보존 우선).
+    """
+    url = "https://kind.krx.co.kr/listinvstg/listingcompany.do"
+    headers = {**HEADERS,
+               "Referer": url + "?method=searchListingTypeMain"}
+    items = [
+        ("method", "searchListingTypeSub"), ("currentPageSize", "5000"),
+        ("pageIndex", "1"), ("forward", "listingtype_sub"),
+        ("listTypeArrStr", "01,02,03,04,05"), ("choicTypeArrStr", "02"),
+        ("secuGrpArrStr", "ST|FS,MF|SC|RT|IF,DR"), ("marketType", ""),
+        ("country", ""), ("fromDate", IPO_START),
+        ("toDate", datetime.now().strftime("%Y-%m-%d")),
+    ]
+    for t in ["01", "02", "03", "04", "05"]:
+        items.append(("listTypeArr", t))
+    for s in ["0", "ST|FS", "MF|SC|RT|IF", "DR"]:
+        items.append(("secuGrpArr", s))
+    for c in ["01", "02", "03", "04", "05", "06"]:
+        items.append(("choicTypeArr", c))
+
+    methods: dict[tuple[str, str], str] = {}
+    try:
+        html = requests.post(url, data=items, headers=headers, timeout=40).text
+        for tr in re.findall(r"<tr[^>]*>(.*?)</tr>", html, re.S):
+            if "<td" not in tr:
+                continue
+            cells = [re.sub(r"\s+", " ", re.sub(r"<[^>]+>", "", x)).strip()
+                     for x in re.findall(r"<td[^>]*>(.*?)</td>", tr, re.S)]
+            if len(cells) >= 3:
+                methods[(cells[1], _norm_name(cells[0]))] = cells[2]
+        print(f"  KIND 상장방법: {len(methods)}개 조회")
+    except Exception as e:
+        print(f"  KIND 상장방법 조회 실패(필터 생략): {e}")
+    return methods
+
+
+def _norm_name(s: str) -> str:
+    return re.sub(r"[\s\-_·()㈜]", "", str(s)).lower()
+
+
+def is_public_offering(ticker: str, name: str, ipo_date: str,
+                       ipo_price, methods: dict) -> bool:
+    """
+    공모청약 신규상장주인지 판정.
+    - 공모가가 있으면 공모청약을 거친 것(코넥스 공모 이전상장 포함) → True
+    - KIND 상장방법이 '신규상장'이면 → True
+    - 상장방법 데이터가 없으면(조회 실패) 보수적으로 True (데이터 보존)
+    - 그 외(이전상장·재상장·스팩합병 등)는 → False
+    """
+    if ipo_price:
+        return True
+    if not methods:
+        return True
+    m = methods.get((ipo_date, _norm_name(name)))
+    if m is None:
+        # 이름 표기 차이 → 상장일 기준 부분일치로 재시도
+        nn = _norm_name(name)
+        for (dt, wn), mt in methods.items():
+            if dt == ipo_date and nn and (nn in wn or wn in nn):
+                m = mt
+                break
+    return m == "신규상장"
 
 
 # ──────────────────────────────────────────
@@ -197,6 +280,10 @@ def main():
     print("[1/3] KIND 상장 목록 조회...")
     listing = get_listing_df()
 
+    # ── 상장방법 (공모 IPO 판별용) ──
+    print("\n[1.5/3] KIND 상장방법 조회...")
+    methods = get_listing_methods()
+
     # ── 공모가 ──
     print("\n[2/3] 공모가 수집 (finuts.co.kr)...")
     date_map = get_finuts_ipo_prices()
@@ -235,6 +322,11 @@ def main():
             match_ipo_price(date_map, ipo_date, name)
             or existing.get(ticker, {}).get("ipo_price")
         )
+
+        # 공모청약 신규상장주가 아니면(이전상장·재상장·스팩합병 등) 제외
+        if not is_public_offering(ticker, name, ipo_date, ipo_price, methods):
+            print(" → 비공모 상장(제외)")
+            continue
 
         stocks.append({
             "ticker":       ticker,
