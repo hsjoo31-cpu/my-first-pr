@@ -225,7 +225,7 @@ function fmtPrice(n) {
  *  - 기준가(상장일 시초가/공모가) 대비 n% 하락가에 매수
  *  - 매수 탐색 구간: [시작 앵커일, 종료 앵커일)  ← 이 구간 밖의 매수타점은 제외
  *  - 보유 한계: 종료 앵커일 '전일 종가'까지 (목표 미달 시 그 종가에 매도)
- * @returns status: "no_signal" | "ongoing" | "target" | "losscut" | "expired" | "ambiguous"
+ * @returns status: "no_signal" | "ongoing" | "target" | "losscut" | "expired"
  */
 function backtestStock(stock, p = params) {
   // 공모가 기준: 일봉이 수정주가이므로 무상증자·분할 배율로 조정한 공모가(ipo_price_adj)를 사용.
@@ -267,7 +267,9 @@ function backtestStock(stock, p = params) {
 
   // 체결가: 그날 시초가가 트리거가(목표 매수가)보다 낮으면(갭하락 등) 시초가에 체결.
   // 그렇지 않으면(장중에 내려와 터치) 트리거가에 체결. → 현실적 평단가.
-  const buyPrice = Math.min(buyTrigger, prices[buyIdx].o);
+  const buyOpen = prices[buyIdx].o;
+  const buyPrice = Math.min(buyTrigger, buyOpen);
+  const boughtAtOpen = buyOpen <= buyTrigger; // 시초가 체결(장 시작부터 보유)
   const buyDate = prices[buyIdx].d;
   const targetSellPrice =
     p.target > 0 ? buyPrice * (1 + p.target / 100) : Infinity;
@@ -277,24 +279,28 @@ function backtestStock(stock, p = params) {
   // ── 매수일부터 보유 한계(forcedSellIdx)까지 시뮬레이션 ──
   for (let i = buyIdx; i <= forcedSellIdx; i++) {
     const day = prices[i];
-    const targetHit = day.h >= targetSellPrice;
-    const losscutHit = p.losscut > 0 && day.c <= losscutThreshold;
 
-    if (targetHit && losscutHit) {
-      return { status: "ambiguous", buyDate, sellDate: day.d,
-        daysHeld: daysBetween(buyDate, day.d), returnPct: null,
-        refPrice, buyPrice, sellPrice: null };
+    // 매수 당일은 '시초가 체결'일 때만 당일 목표/손절을 인정(장 시작부터 보유).
+    // 장중 트리거 체결이면 당일 고·저 발생 순서를 알 수 없어 보수적으로 다음날부터 판정.
+    if (i === buyIdx && !boughtAtOpen) continue;
+
+    const losscutHit = p.losscut > 0 && day.l <= losscutThreshold; // 저가가 손절가 터치
+    const targetHit = day.h >= targetSellPrice;                    // 고가가 목표가 도달
+
+    // 보수적: 같은 날 손절·목표가 모두 닿으면 순서 불명 → 손절 우선(나쁜 쪽 가정)
+    if (losscutHit) {
+      // 갭하락으로 시초가가 손절가보다 낮게 출발했으면 시초가에 체결(더 불리 = 보수적)
+      const sellPx = Math.min(day.o, losscutThreshold);
+      return { status: "losscut", buyDate, sellDate: day.d,
+        daysHeld: daysBetween(buyDate, day.d),
+        returnPct: ((sellPx - buyPrice) / buyPrice) * 100,
+        refPrice, buyPrice, sellPrice: Math.round(sellPx) };
     }
     if (targetHit) {
+      // 갭상승해도 목표가에만 체결(보수적)
       return { status: "target", buyDate, sellDate: day.d,
         daysHeld: daysBetween(buyDate, day.d), returnPct: p.target,
         refPrice, buyPrice, sellPrice: Math.round(targetSellPrice) };
-    }
-    if (losscutHit) {
-      return { status: "losscut", buyDate, sellDate: day.d,
-        daysHeld: daysBetween(buyDate, day.d),
-        returnPct: ((day.c - buyPrice) / buyPrice) * 100,
-        refPrice, buyPrice, sellPrice: day.c };
     }
   }
 
@@ -389,7 +395,7 @@ function render() {
   note.textContent =
     signaled.length > 0
       ? `신호 ${signaled.length}건 중 완료 ${completed.length}건 · 진행중 ${
-          signaled.length - completed.length - results.filter(r=>r.result.status==='ambiguous').length
+          signaled.length - completed.length
         }건`
       : "";
 
@@ -472,7 +478,6 @@ function buildRow(stock, r) {
     target:    `<span class="badge badge-target">✅ 목표달성</span>`,
     losscut:   `<span class="badge badge-losscut">❌ 손절</span>`,
     expired:   `<span class="badge badge-expired">⏱ 해제전 매도</span>`,
-    ambiguous: `<span class="badge badge-ambig">⚠️ 요확인</span>`,
     ongoing:   `<span class="badge badge-ongoing">📌 진행중</span>`,
     no_signal: `<span class="badge badge-nosig">— 신호없음</span>`,
   }[r.status] || "";
@@ -480,7 +485,7 @@ function buildRow(stock, r) {
   const returnCell =
     r.returnPct != null
       ? `<td class="num ${r.returnPct >= 0 ? "positive" : "negative"}">${fmt(r.returnPct)}</td>`
-      : `<td class="num warning">⚠️ 요확인</td>`;
+      : `<td class="num">—</td>`;
 
   return `<tr>
     <td><strong>${esc(stock.name)}</strong></td>
