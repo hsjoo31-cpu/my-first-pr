@@ -34,6 +34,13 @@ EXCLUDE_TICKERS = {
     "462520",
 }
 
+# 소스 자동 매칭이 틀린 것으로 확인된 공모가 수동 보정(최우선 적용).
+# 아이티센피엔에스: finuts가 같은 날 다른 종목 값(34,000)을 잘못 매칭 →
+#   38커뮤니케이션 값 3,000이 시초가(8,940, 공모가 대비 +198%)와 정합.
+MANUAL_IPO_PRICES = {
+    "232830": 3000,   # 아이티센피엔에스 (코넥스→코스닥 이전상장)
+}
+
 
 # ──────────────────────────────────────────
 # 1. KIND에서 상장 종목 목록 (상장일 포함)
@@ -215,9 +222,49 @@ def get_finuts_ipo_prices() -> dict[str, int]:
     return date_map
 
 
+def get_38_ipo_prices() -> dict[str, list[tuple[str, int]]]:
+    """
+    38커뮤니케이션 신규상장 목록에서 {상장일: [(회사명, 공모가), ...]}을 반환.
+    finuts는 롤링 윈도우라 옛 종목이 빠지지만 38은 과거까지 커버 → 보완 소스.
+    (컬럼: 종목명 | 상장일 | 현재가 | 등락 | 공모가 | ... )
+    """
+    date_map: dict[str, list[tuple[str, int]]] = {}
+    try:
+        for page in range(1, 26):
+            url = f"http://www.38.co.kr/html/fund/index.htm?o=nw&page={page}"
+            html = requests.get(url, headers=HEADERS, timeout=20)\
+                .content.decode("euc-kr", "replace")
+            got = 0
+            for tr in re.findall(r"<tr[^>]*>(.*?)</tr>", html, re.S):
+                tds = [re.sub(r"\s+", " ",
+                              re.sub(r"<[^>]+>", "", c).replace("&nbsp;", " ")
+                              ).strip()
+                       for c in re.findall(r"<td[^>]*>(.*?)</td>", tr, re.S)]
+                if len(tds) != 10:
+                    continue
+                m = re.match(r"(\d{4})/(\d\d)/(\d\d)", tds[1])
+                if not m:
+                    continue
+                digits = re.sub(r"[^\d]", "", tds[4])
+                if not digits:
+                    continue
+                price = int(digits)
+                if price > 0:
+                    d = f"{m.group(1)}-{m.group(2)}-{m.group(3)}"
+                    date_map.setdefault(d, []).append((tds[0], price))
+                    got += 1
+            if got == 0:
+                break
+        print(f"  38 공모가: {sum(len(v) for v in date_map.values())}개 항목 "
+              f"({len(date_map)}개 날짜)")
+    except Exception as e:
+        print(f"  38 조회 실패: {e}")
+    return date_map
+
+
 def match_ipo_price(date_map: dict, ipo_date: str, name: str) -> int | None:
     """
-    finuts 데이터와 (상장일, 회사명)으로 공모가를 매핑.
+    공모가 date_map({상장일: [(회사명, 공모가)]})과 (상장일, 회사명)으로 공모가 매핑.
     같은 날 1개면 바로 반환, 여러 개면 이름 유사도로 매핑.
     """
     candidates = date_map.get(ipo_date, [])
@@ -284,9 +331,10 @@ def main():
     print("\n[1.5/3] KIND 상장방법 조회...")
     methods = get_listing_methods()
 
-    # ── 공모가 ──
-    print("\n[2/3] 공모가 수집 (finuts.co.kr)...")
+    # ── 공모가 ── (finuts + 38커뮤니케이션 이중 소스)
+    print("\n[2/3] 공모가 수집 (finuts.co.kr + 38.co.kr)...")
     date_map = get_finuts_ipo_prices()
+    date_map_38 = get_38_ipo_prices()
 
     # 기존 데이터에서 공모가 보존
     existing: dict[str, dict] = {}
@@ -318,8 +366,11 @@ def main():
             continue
 
         listing_open = prices[0]["o"]
+        # 공모가 우선순위: 수동보정 > finuts > 38 > 기존값
         ipo_price = (
-            match_ipo_price(date_map, ipo_date, name)
+            MANUAL_IPO_PRICES.get(ticker)
+            or match_ipo_price(date_map, ipo_date, name)
+            or match_ipo_price(date_map_38, ipo_date, name)
             or existing.get(ticker, {}).get("ipo_price")
         )
 
