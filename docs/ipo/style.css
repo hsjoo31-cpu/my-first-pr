@@ -52,13 +52,16 @@ header h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; margin-b
 }
 .latest-ipo {
   display: inline-block;
-  margin-top: 10px;
-  font-size: 13px;
+  vertical-align: middle;
+  margin-left: 8px;
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0;
   color: var(--text-dim);
   background: rgba(74, 222, 128, 0.08);
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 6px 12px;
+  padding: 4px 10px;
 }
 .latest-ipo strong { color: var(--accent); font-weight: 600; }
 
