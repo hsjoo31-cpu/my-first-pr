@@ -2,12 +2,12 @@ name: Weekly New-High Screener
 
 on:
   schedule:
-    # marcap 데이터는 금요일 종가가 토요일 저녁(KST)에 반영됨.
-    # 토 22:00 KST(UTC 13:00 토) 1차 시도, 일 08:00 KST(UTC 23:00 토) 재시도,
-    # 월 08:00 KST(UTC 23:00 일) 최종 시도. 데이터 미반영 시 스크립트가 스스로 보류.
-    - cron: "0 13 * * 6"
-    - cron: "0 23 * * 6"
-    - cron: "0 23 * * 0"
+    # marcap은 평일에만, 하루 늦게 갱신됨 → 금요일 종가는 다음 영업일인
+    # 월요일 낮(~12:18 UTC ≈ 월 21시 KST)에야 올라옴.
+    # 따라서 월 23:00 KST(월 14:00 UTC) 1차 시도, 화 11:00 KST(화 02:00 UTC) 안전망 재시도.
+    # 데이터 미반영 시 스크립트가 스스로 보류(REQUIRE_FRESH=1).
+    - cron: "0 14 * * 1"
+    - cron: "0 2 * * 2"
   workflow_dispatch:
 
 permissions:
