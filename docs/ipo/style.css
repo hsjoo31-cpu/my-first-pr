@@ -308,16 +308,12 @@ input[type="number"]:focus { outline: 2px solid var(--accent); }
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 12px;
-  overflow-x: auto;
+  overflow: auto;         /* 가로+세로 스크롤 컨테이너 → 헤더 고정이 여기 기준으로 작동 */
+  max-height: 78vh;       /* 종목이 많으면 내부 스크롤, 헤더는 상단 고정 */
 }
 
 table { width: 100%; border-collapse: collapse; font-size: 13px; }
-thead {
-  background: rgba(255,255,255,0.02);
-  border-bottom: 1px solid var(--border);
-  position: sticky;
-  top: 0;
-}
+thead { border-bottom: 1px solid var(--border); }
 th {
   padding: 11px 14px;
   text-align: left;
@@ -327,6 +323,13 @@ th {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   white-space: nowrap;
+  /* 스크롤 시 헤더 고정 — border-collapse에선 th에 sticky를 걸어야 안정적.
+     불투명 배경 + 하단 경계선(box-shadow)으로 아래 행이 비치지 않게 함. */
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--surface);
+  box-shadow: inset 0 -1px 0 var(--border);
 }
 th.num { text-align: right; }
 td {
