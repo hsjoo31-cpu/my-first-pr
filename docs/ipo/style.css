@@ -162,6 +162,7 @@ header h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; margin-b
   gap: 16px;
 }
 .controls-head { margin-bottom: -2px; }
+.maxhold-row { display: flex; flex-direction: column; gap: 8px; }
 
 .control-row {
   display: flex;

@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>포스트 IPO 백테스터</title>
-  <link rel="stylesheet" href="style.css?v=260711" />
+  <title>POST IPO 백테스터</title>
+  <link rel="stylesheet" href="style.css?v=260711b" />
 </head>
 <body>
   <header>
@@ -12,7 +12,7 @@
       <a class="back-link" href="../index.html">← 홈으로</a>
       <a class="back-link" href="data.html">🗂 데이터 관리</a>
     </nav>
-    <h1>포스트 IPO 전략 백테스터 <span class="krx-badge">KRX 정규장 기준</span><span
+    <h1>POST IPO 전략 백테스터 <span class="krx-badge">KRX 정규장 기준</span><span
       class="latest-ipo" id="latest-ipo" hidden>🆕 최신 상장 종목: <span id="latest-ipo-names">—</span></span><span
       class="update-note">업데이트 <span id="updated-at">—</span></span></h1>
     <p class="subtitle">
@@ -94,6 +94,25 @@
           <button class="tab" data-value="30">+30%</button>
           <button class="tab" data-value="40">+40%</button>
           <button class="tab" data-value="50">+50%</button>
+        </div>
+      </div>
+
+      <!-- 최대 보유 (익절·손절 없을 때 강제 매도) -->
+      <div class="control-group">
+        <label class="ctrl-label">
+          최대 보유
+          <span class="ctrl-hint">(익절·손절 없을 때 종가 매도)</span>
+        </label>
+        <div class="maxhold-row">
+          <div class="tab-group" id="maxhold-tabs">
+            <button class="tab active" data-value="none">무제한</button>
+            <button class="tab" data-value="days">거래일</button>
+            <button class="tab" data-value="month">1개월</button>
+          </div>
+          <div class="number-input-row" id="maxhold-days-wrap" hidden>
+            <input type="number" id="maxhold-days" min="1" max="250" step="1" value="20" />
+            <span>거래일</span>
+          </div>
         </div>
       </div>
     </div>
@@ -193,7 +212,10 @@
     <p>
       매수: 장중 저가가 기준가 대비 하락률 터치 시 (시초가가 더 낮으면 시초가 체결) /
       손절: 장중 <strong>저가</strong>가 손절가 터치 시 (같은 날 목표·손절 동시 도달이면 <strong>손절 우선</strong>) /
-      당일 목표·손절은 <strong>시초가 매수</strong>일 때만 인정 / 해제전 매도: 종료 확약해제일 전일 종가 /
+      당일 목표·손절은 <strong>시초가 매수</strong>일 때만 인정 /
+      시초가 <strong>갭</strong>이 목표·손절가를 넘겨 출발하면 <strong>시초가(갭가격)에 체결</strong> /
+      해제전 매도: 종료 확약해제일 전일 종가 /
+      최대 보유(선택 시): N거래일째 종가 또는 매수 후 1개월(달력, 휴장이면 다음 거래일) 종가 — 타게팅 종료일과 더 이른 쪽 적용 /
       종목당 <strong>1회 매매</strong>만 (완료 후 재신호 무시)
     </p>
     <p>본 데이터는 투자 참고용이며 투자 권유가 아닙니다. 세금·수수료 미반영.</p>
@@ -202,6 +224,6 @@
        공모가도 동일 배율로 조정한 값을 기준가로 사용합니다 → 결과표의 기준가가 실제 공모가와 다를 수 있습니다(실제 공모가는 데이터 관리 참고).</p>
   </footer>
 
-  <script src="app.js?v=260711c"></script>
+  <script src="app.js?v=260711e"></script>
 </body>
 </html>

@@ -26,6 +26,11 @@ const params = {
   target: 20,                // 목표수익률 (%)
   // 타게팅 기간: 시작 앵커일부터 매수 탐색, 종료 앵커일 전일 종가까지 보유
   targeting: { start: "listing", end: "m3" },
+  // 최대 보유: 익절·손절 없을 때 강제 매도 한도 (타게팅 종료일과 함께 더 이른 쪽 적용)
+  //   mode "none"  = 무제한(타게팅 종료일까지)
+  //   mode "days"  = N 거래일 (N째 거래일 종가)
+  //   mode "month" = 매수 후 1개월(달력) 되는 날 또는 다음 거래일 종가
+  maxHold: { mode: "none", days: 20 },
 };
 
 // ──────────────────────────────────────────
@@ -113,6 +118,20 @@ function bindControls() {
   bindTabs("target-tabs", (val) => {
     params.target = +val;
     render();
+  });
+
+  // 최대 보유 모드 (무제한 / 거래일 / 1개월)
+  const mhWrap = document.getElementById("maxhold-days-wrap");
+  bindTabs("maxhold-tabs", (val) => {
+    params.maxHold.mode = val;
+    mhWrap.hidden = val !== "days";
+    render();
+  });
+  const mhDays = document.getElementById("maxhold-days");
+  mhDays.addEventListener("change", () => {
+    params.maxHold.days = Math.max(1, Math.min(250, +mhDays.value || 1));
+    mhDays.value = params.maxHold.days;
+    if (params.maxHold.mode === "days") render();
   });
 
   // 타게팅 기간 앵커 선택 (2개 선택 = 시작~종료)
@@ -276,44 +295,58 @@ function backtestStock(stock, p = params) {
   const losscutThreshold =
     p.losscut > 0 ? buyPrice * (1 - p.losscut / 100) : -Infinity;
 
-  // ── 매수일부터 보유 한계(forcedSellIdx)까지 시뮬레이션 ──
-  for (let i = buyIdx; i <= forcedSellIdx; i++) {
+  // 체결가(px)로 결과 객체 생성 — 수익률은 실제 체결가 기준으로 계산
+  const exit = (status, d, px, reason) => ({
+    status, buyDate, sellDate: d, daysHeld: daysBetween(buyDate, d),
+    returnPct: ((px - buyPrice) / buyPrice) * 100,
+    refPrice, buyPrice, sellPrice: Math.round(px), exitReason: reason,
+  });
+
+  // ── 강제 매도(익절·손절 없을 때) 한도 계산 ──
+  const lastIdx = prices.length - 1;
+  // (A) 타게팅 종료: 종료 확약해제일 전일. 해제일이 실제 도래한 경우에만 유효.
+  const lockupCapIdx = endReached ? forcedSellIdx : Infinity;
+  // (B) 최대 보유 한도
+  let maxHoldCapIdx = Infinity;
+  if (p.maxHold.mode === "days") {
+    const idx = buyIdx + (p.maxHold.days - 1); // 매수일 = 1거래일째
+    if (idx <= lastIdx) maxHoldCapIdx = idx;
+  } else if (p.maxHold.mode === "month") {
+    const monthDate = addMonths(buyDate, 1); // 매수 후 1개월(달력)
+    for (let i = buyIdx; i <= lastIdx; i++) {
+      if (prices[i].d >= monthDate) { maxHoldCapIdx = i; break; } // 그날 또는 다음 거래일
+    }
+  }
+  // 더 이른 한도가 실제 강제매도일. 둘 다 미도달(Infinity)이면 데이터 끝까지 보고 진행중.
+  const hardStopIdx = Math.min(lockupCapIdx, maxHoldCapIdx);
+  const simEnd = hardStopIdx === Infinity ? lastIdx : hardStopIdx;
+
+  // ── 매수일부터 강제매도 한도(simEnd)까지 시뮬레이션 ──
+  for (let i = buyIdx; i <= simEnd; i++) {
     const day = prices[i];
 
     // 매수 당일은 '시초가 체결'일 때만 당일 목표/손절을 인정(장 시작부터 보유).
     // 장중 트리거 체결이면 당일 고·저 발생 순서를 알 수 없어 보수적으로 다음날부터 판정.
     if (i === buyIdx && !boughtAtOpen) continue;
 
-    const losscutHit = p.losscut > 0 && day.l <= losscutThreshold; // 저가가 손절가 터치
-    const targetHit = day.h >= targetSellPrice;                    // 고가가 목표가 도달
+    // 1) 시초가 갭이 이미 목표/손절가를 충족하면 그 순간(시초가=갭가격)에 체결.
+    //    상승 갭이면 목표가 이상, 하락 갭이면 손절가 이하 → 장중 반대 판정보다 우선.
+    if (day.o >= targetSellPrice) return exit("target", day.d, day.o);
+    if (p.losscut > 0 && day.o <= losscutThreshold) return exit("losscut", day.d, day.o);
 
-    // 보수적: 같은 날 손절·목표가 모두 닿으면 순서 불명 → 손절 우선(나쁜 쪽 가정)
-    if (losscutHit) {
-      // 갭하락으로 시초가가 손절가보다 낮게 출발했으면 시초가에 체결(더 불리 = 보수적)
-      const sellPx = Math.min(day.o, losscutThreshold);
-      return { status: "losscut", buyDate, sellDate: day.d,
-        daysHeld: daysBetween(buyDate, day.d),
-        returnPct: ((sellPx - buyPrice) / buyPrice) * 100,
-        refPrice, buyPrice, sellPrice: Math.round(sellPx) };
-    }
-    if (targetHit) {
-      // 갭상승해도 목표가에만 체결(보수적)
-      return { status: "target", buyDate, sellDate: day.d,
-        daysHeld: daysBetween(buyDate, day.d), returnPct: p.target,
-        refPrice, buyPrice, sellPrice: Math.round(targetSellPrice) };
-    }
+    // 2) 시초가는 구간 안 → 장중 터치로 판정. 보수적으로 손절 우선.
+    if (p.losscut > 0 && day.l <= losscutThreshold) return exit("losscut", day.d, losscutThreshold);
+    if (day.h >= targetSellPrice) return exit("target", day.d, targetSellPrice);
   }
 
-  // 목표·손절 없이 보유 한계 도달
-  if (endReached) {
-    // 종료 확약해제일 전일 종가에 매도
-    const day = prices[forcedSellIdx];
-    return { status: "expired", buyDate, sellDate: day.d,
-      daysHeld: daysBetween(buyDate, day.d),
-      returnPct: ((day.c - buyPrice) / buyPrice) * 100,
-      refPrice, buyPrice, sellPrice: day.c };
+  // 목표·손절 없이 강제매도 한도 도달 → 그 날 종가에 매도
+  if (hardStopIdx !== Infinity) {
+    const d = prices[hardStopIdx];
+    // 보유만기(최대보유)가 타게팅 종료보다 이르면 '보유만기', 아니면 '해제전'
+    const reason = maxHoldCapIdx <= lockupCapIdx ? "보유만기" : "해제전";
+    return exit("expired", d.d, d.c, reason);
   }
-  // 종료 확약해제일 미도래 → 아직 보유 중
+  // 강제매도 한도 미도래 → 아직 보유 중
   return { status: "ongoing", buyDate, refPrice, buyPrice };
 }
 
@@ -474,10 +507,12 @@ function buildRow(stock, r) {
   const refLabel =
     params.reference === "ipo_price" ? "공모가" : "시초가";
 
+  const expiredLabel =
+    r.exitReason === "보유만기" ? "⏱ 보유만기" : "⏱ 해제전 매도";
   const statusBadge = {
     target:    `<span class="badge badge-target">✅ 목표달성</span>`,
     losscut:   `<span class="badge badge-losscut">❌ 손절</span>`,
-    expired:   `<span class="badge badge-expired">⏱ 해제전 매도</span>`,
+    expired:   `<span class="badge badge-expired">${expiredLabel}</span>`,
     ongoing:   `<span class="badge badge-ongoing">📌 진행중</span>`,
     no_signal: `<span class="badge badge-nosig">— 신호없음</span>`,
   }[r.status] || "";
