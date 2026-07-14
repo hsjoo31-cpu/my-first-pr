@@ -298,11 +298,12 @@ def match_ipo_price(date_map: dict, ipo_date: str, name: str) -> int | None:
         return re.sub(r"[\s\-_·]", "", s).lower()
 
     norm_name = normalize(name)
-    for cand_name, price in candidates:
+    # 튜플 길이가 소스마다 다름: finuts (회사명, 공모가) / 38 (회사명, 공모가, 명목시초가)
+    for cand_name, price, *_ in candidates:
         if normalize(cand_name) == norm_name:
             return price
     # 부분 일치
-    for cand_name, price in candidates:
+    for cand_name, price, *_ in candidates:
         if normalize(cand_name) in norm_name or norm_name in normalize(cand_name):
             return price
     # 매핑 실패 시 None
