@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>외국인 따라가기 백테스터</title>
+  <link rel="stylesheet" href="style.css?v=260723" />
+</head>
+<body>
+  <header>
+    <a class="back-link" href="../index.html">← 홈으로</a>
+    <h1>외국인 따라가기 백테스터 <span class="krx-badge">외국인 순매수 상위</span></h1>
+    <p class="subtitle">
+      주간·월간 외국인 순매수 상위(우선주 제외) 종목을 동일 비중으로 따라 사고,
+      종목당 목표수익률·로스컷 또는 최대보유기간 만료 종가에 파는 전략을 백테스팅합니다.
+    </p>
+    <p class="updated"><span id="updated-at">불러오는 중…</span><span id="data-range" class="update-note"></span></p>
+  </header>
+
+  <!-- ⓪ 추천 전략 TOP 3 -->
+  <section class="reco" id="reco-section">
+    <div class="reco-head">
+      <h2>🏅 추천 전략 <span class="ctrl-hint">현재 손익·보유 설정 기준 · 종목당 평균수익률 상위</span></h2>
+    </div>
+    <div class="reco-cards" id="reco-cards"></div>
+  </section>
+
+  <!-- ① 전략 설정 -->
+  <section class="controls" id="controls">
+    <div class="controls-head"><h2>전략 설정</h2></div>
+
+    <!-- 손익 조건 -->
+    <div class="control-row">
+      <div class="control-group">
+        <span class="ctrl-label">목표수익률 <span class="ctrl-hint">종목당 익절</span></span>
+        <div class="onoff-row">
+          <button class="mini-btn" id="target-none" data-target="none">없음</button>
+          <div class="number-input-row">
+            <span class="plus-sign">+</span>
+            <input type="number" id="target-input" min="1" max="500" step="5" value="20" />
+            <span class="unit">%</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <span class="ctrl-label">로스컷 <span class="ctrl-hint">종목당 손절</span></span>
+        <div class="onoff-row">
+          <button class="mini-btn" id="losscut-none" data-losscut="none">없음</button>
+          <div class="number-input-row">
+            <span class="minus-sign">−</span>
+            <input type="number" id="losscut-input" min="1" max="90" step="1" value="10" />
+            <span class="unit">%</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <span class="ctrl-label">최대 보유기간 <span class="ctrl-hint">미체결 시 만기 종가 매도</span></span>
+        <div class="onoff-row">
+          <div class="tab-group" id="hold-mode">
+            <button class="tab" data-value="days">거래일</button>
+            <button class="tab active" data-value="months">개월</button>
+          </div>
+          <div class="number-input-row">
+            <input type="number" id="hold-input" min="1" max="250" step="1" value="1" />
+            <span class="unit" id="hold-unit">개월</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- 종목 선정 -->
+    <div class="control-row">
+      <div class="control-group">
+        <span class="ctrl-label">순매수 집계 기준</span>
+        <div class="tab-group" id="period-type">
+          <button class="tab active" data-value="weekly">주간</button>
+          <button class="tab" data-value="monthly">월간</button>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <span class="ctrl-label">시장</span>
+        <div class="tab-group" id="market">
+          <button class="tab active" data-value="ALL">전체</button>
+          <button class="tab" data-value="KOSPI">코스피</button>
+          <button class="tab" data-value="KOSDAQ">코스닥</button>
+        </div>
+      </div>
+
+      <div class="control-group wide">
+        <span class="ctrl-label">순매수 순위 범위 <span class="ctrl-hint">1~20위 중 선택 · 동일 비중 매수</span></span>
+        <div class="rank-row">
+          <div class="number-input-row">
+            <input type="number" id="rank-lo" min="1" max="20" step="1" value="1" />
+            <span class="unit">위</span>
+          </div>
+          <span class="tilde">~</span>
+          <div class="number-input-row">
+            <input type="number" id="rank-hi" min="1" max="20" step="1" value="10" />
+            <span class="unit">위</span>
+          </div>
+          <span class="rank-count" id="rank-count">10종목/기간</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 요약 통계 -->
+  <div class="meta" id="meta"></div>
+
+  <!-- ② 연도별 결과 -->
+  <section id="yearly-section">
+    <div class="results-header">
+      <h2>연도별 결과 <span class="results-note">(매수일 기준)</span></h2>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>연도</th><th class="num">매수 종목</th><th class="num">동시보유 최대</th>
+            <th class="num">승률</th><th class="num">종목당 평균</th><th class="num">누적(합)</th>
+          </tr>
+        </thead>
+        <tbody id="yearly-body"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ③ 분기별 결과 -->
+  <section id="quarterly-section">
+    <div class="results-header">
+      <h2>분기별 결과 <span class="results-note">(매수일 기준)</span></h2>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>분기</th><th class="num">매수 종목</th><th class="num">동시보유 최대</th>
+            <th class="num">승률</th><th class="num">종목당 평균</th><th class="num">누적(합)</th>
+          </tr>
+        </thead>
+        <tbody id="quarterly-body"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ③ 결과 상세 (매매 종목 내역) -->
+  <section id="detail-section">
+    <div class="results-header">
+      <h2>결과 상세 <span class="results-note" id="detail-note">매매 종목 내역</span></h2>
+    </div>
+    <div class="table-wrap">
+      <table id="detail-table">
+        <thead>
+          <tr>
+            <th>매수일</th><th>종목</th><th>시장</th><th class="num">순위</th>
+            <th class="num">매수가</th><th>매도일</th><th class="num">보유일</th>
+            <th class="num">수익률</th><th>결과</th>
+          </tr>
+        </thead>
+        <tbody id="detail-body"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer>
+    순매수 랭킹: 네이버(외국인 순매수 수량) × KRX 종가 · 가격: KRX marcap(수정주가)<br />
+    수수료·거래세·슬리피지 미반영 · 종목당 동일금액 투입 가정 · 상장폐지 종목 포함(생존편향 없음)<br />
+    본 데이터는 투자 참고용이며 투자 권유가 아닙니다.
+  </footer>
+
+  <script src="app.js?v=260723"></script>
+</body>
+</html>

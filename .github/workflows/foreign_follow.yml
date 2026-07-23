@@ -1,0 +1,43 @@
+name: Foreign-Follow Backtest Data
+
+on:
+  schedule:
+    # marcap은 평일에 하루 늦게 갱신 → 금요일 종가는 다음 영업일(월) 낮에 반영.
+    # 따라서 완결된 직전 주/월을 확실히 잡으려면 화요일 오전에 1차 갱신.
+    # 화 09:00 KST(00:00 UTC) 1차, 금 09:00 KST(00:00 UTC) 주중 보강.
+    - cron: "0 0 * * 2"
+    - cron: "0 0 * * 5"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install pandas pyarrow numpy requests
+
+      - name: Fetch & build (증분 — 커밋된 네이버 캐시 재사용)
+        run: python scripts/foreign_follow_fetcher.py
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/data/foreign_follow.json data_cache/naver_foreign.json
+          if git diff --staged --quiet; then
+            echo "변경 없음"
+          else
+            git commit -m "chore: auto-update foreign-follow backtest data"
+            git push
+          fi
