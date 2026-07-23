@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>상한가 다음날 매매 백테스터</title>
+  <link rel="stylesheet" href="style.css?v=260723" />
+</head>
+<body>
+  <header>
+    <nav class="top-nav">
+      <a class="back-link" href="../index.html">← 홈으로</a>
+    </nav>
+    <h1>상한가 다음날 매매 백테스터 <span class="krx-badge">KRX 시세 기준</span><span
+      class="update-note">업데이트 <span id="updated-at">—</span></span></h1>
+    <p class="subtitle">
+      2023.01 이후 · 상한가(+30%) 마감 · 상한가일 종가 시총 1조원 이상 · 다음 거래일 시초가 매수 → 목표 미달 시 당일 종가 매도
+    </p>
+  </header>
+
+  <!-- ── 전략 개념 ── -->
+  <section class="concept">
+    <div class="concept-line">
+      <span class="step"><b>①</b> 상한가일 <span class="dim">(+30% 마감, 종가 시총 1조+)</span></span>
+      <span class="arrow">→</span>
+      <span class="step"><b>②</b> 다음 거래일 <b class="hl">시초가 매수</b></span>
+      <span class="arrow">→</span>
+      <span class="step"><b>③</b> 당일 <b class="hl">+목표% 익절</b> <span class="dim">(고가 터치)</span></span>
+      <span class="arrow">→</span>
+      <span class="step"><b>④</b> 미달 시 당일 <b class="warn">종가 매도</b></span>
+    </div>
+  </section>
+
+  <!-- ── 컨트롤 ── -->
+  <section class="controls">
+    <div class="control-row">
+      <!-- 목표수익률 -->
+      <div class="control-group wide">
+        <label class="ctrl-label">
+          목표수익률&nbsp;<strong id="t-val">5</strong>%
+          <span class="ctrl-hint">(매수 시초가 대비 · 당일 고가 터치 시 익절)</span>
+        </label>
+        <input type="range" id="t-slider" min="1" max="30" step="1" value="5" />
+        <div class="slider-marks">
+          <span>1%</span><span>5%</span><span>10%</span>
+          <span>15%</span><span>20%</span><span>25%</span><span>30%</span>
+        </div>
+      </div>
+
+      <!-- 시장 -->
+      <div class="control-group">
+        <label class="ctrl-label">시장</label>
+        <div class="tab-group" id="market-tabs">
+          <button class="tab active" data-value="ALL">전체</button>
+          <button class="tab" data-value="KOSPI">KOSPI</button>
+          <button class="tab" data-value="KOSDAQ">KOSDAQ</button>
+        </div>
+      </div>
+
+      <!-- 시총 하한 -->
+      <div class="control-group">
+        <label class="ctrl-label">시총 하한 <span class="ctrl-hint">(상한가일 종가 기준)</span></label>
+        <div class="tab-group" id="cap-tabs">
+          <button class="tab active" data-value="10000">1조</button>
+          <button class="tab" data-value="20000">2조</button>
+          <button class="tab" data-value="50000">5조</button>
+          <button class="tab" data-value="100000">10조</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 요약 카드 ── -->
+  <section class="meta">
+    <div class="meta-card">
+      <span class="label">상한가 이벤트</span>
+      <span class="value" id="total-count">—</span>
+    </div>
+    <div class="meta-card">
+      <span class="label">목표달성</span>
+      <span class="value positive" id="win-count">—</span>
+    </div>
+    <div class="meta-card">
+      <span class="label">목표달성률</span>
+      <span class="value positive" id="win-rate">—</span>
+    </div>
+    <div class="meta-card">
+      <span class="label">평균 수익률</span>
+      <span class="value" id="avg-return">—</span>
+    </div>
+    <div class="meta-card" title="각 거래 수익률의 단순 합 (1회 1주 균등)">
+      <span class="label">누적 수익률</span>
+      <span class="value" id="cum-return">—</span>
+    </div>
+    <div class="meta-card" title="수익률 > 0 인 거래 비율">
+      <span class="label">승률</span>
+      <span class="value" id="hit-rate">—</span>
+    </div>
+    <div class="meta-card" title="목표 없이 무조건 당일 종가에 매도했을 때 평균 수익률">
+      <span class="label">종가매도 평균</span>
+      <span class="value" id="close-avg">—</span>
+    </div>
+    <div class="meta-card" title="상한가일 종가 → 다음날 시초가 평균 갭">
+      <span class="label">평균 시초 갭</span>
+      <span class="value" id="gap-avg">—</span>
+    </div>
+  </section>
+
+  <!-- ── 목표수익률별 성과 (핵심) ── -->
+  <section class="results">
+    <div class="results-header">
+      <h2>목표수익률별 성과 <span class="results-note">몇 %를 목표로 삼아야 했나 · 현재 선택 행 강조</span></h2>
+    </div>
+    <div class="table-wrap">
+      <table id="sweep-table">
+        <thead>
+          <tr>
+            <th>목표수익률</th>
+            <th class="num">목표달성</th>
+            <th class="num">목표달성률</th>
+            <th class="num">평균수익률</th>
+            <th class="num">누적수익률</th>
+            <th class="num">종가매도比</th>
+          </tr>
+        </thead>
+        <tbody id="sweep-body">
+          <tr><td colspan="6" class="empty">데이터 로딩 중…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ── 연도별 성과 ── -->
+  <section class="results">
+    <div class="results-header">
+      <h2>연도별 성과 <span class="results-note">(현재 목표수익률 기준)</span></h2>
+    </div>
+    <div class="table-wrap">
+      <table id="yearly-table">
+        <thead>
+          <tr>
+            <th>연도</th>
+            <th class="num">이벤트</th>
+            <th class="num">목표달성률</th>
+            <th class="num">평균수익률</th>
+            <th class="num">누적수익률</th>
+          </tr>
+        </thead>
+        <tbody id="yearly-body">
+          <tr><td colspan="5" class="empty">데이터 로딩 중…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ── 이벤트별 결과 ── -->
+  <section class="results">
+    <div class="results-header">
+      <h2>이벤트별 결과</h2>
+      <span class="results-note" id="results-note">헤더 클릭으로 정렬</span>
+    </div>
+    <div class="table-wrap">
+      <table id="results-table">
+        <thead>
+          <tr>
+            <th class="sortable" data-key="d0">상한가일</th>
+            <th>종목명</th>
+            <th>시장</th>
+            <th class="num sortable" data-key="cap">시총</th>
+            <th class="num sortable" data-key="ret0">상한가등락</th>
+            <th class="num sortable" data-key="gap">시초 갭</th>
+            <th class="num sortable" data-key="maxUp">고가(시초比)</th>
+            <th class="num sortable" data-key="closeRet">종가(시초比)</th>
+            <th class="num sortable" data-key="ret">수익률</th>
+            <th>결과</th>
+          </tr>
+        </thead>
+        <tbody id="results-body">
+          <tr><td colspan="10" class="empty">데이터 로딩 중…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer>
+    <p>
+      매수: 상한가일 <strong>다음 거래일 시초가</strong> /
+      익절: 당일 <strong>고가</strong>가 목표가(시초가×(1+목표%)) 터치 시 <strong>+목표%</strong> /
+      미달: 같은 날 <strong>종가 매도</strong> (보유 1일) /
+      갭상승으로 시초가가 이미 목표가 이상이어도 <strong>+목표%로 보수 처리</strong>
+    </p>
+    <p>상한가 판정: 전일 종가 대비 등락률 <strong>+29~31%</strong> 밴드 (KRX ±30% 가격제한). 상장 첫날 등 이상치는 밴드에서 배제됩니다.</p>
+    <p>본 데이터는 투자 참고용이며 투자 권유가 아닙니다. 세금·수수료·슬리피지 미반영.</p>
+    <p>가격 데이터: <strong>marcap (KRX 원본 시세)</strong> · 당일 매수·당일 청산이라 수정주가 보정 불필요.</p>
+  </footer>
+
+  <script src="app.js?v=260723"></script>
+</body>
+</html>
