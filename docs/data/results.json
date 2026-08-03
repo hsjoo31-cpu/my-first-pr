@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-08-02T19:40:45.568586+09:00",
+  "updated_at": "2026-08-03T21:22:32.709604+09:00",
   "target_month": "2026-07",
   "period": {
     "start": "2026-06-30",
@@ -12,7 +12,7 @@
     "report_min": 2
   },
   "universe_size": 626,
-  "passed_count": 52,
+  "passed_count": 54,
   "stocks": [
     {
       "rank": 1,
@@ -20,7 +20,7 @@
       "name": "금호타이어",
       "market": "KOSPI",
       "return_pct": 49.39,
-      "marcap_eok": 20941,
+      "marcap_eok": 19132,
       "report_count": 4
     },
     {
@@ -29,7 +29,7 @@
       "name": "롯데렌탈",
       "market": "KOSPI",
       "return_pct": 40.04,
-      "marcap_eok": 14288,
+      "marcap_eok": 14143,
       "report_count": 7
     },
     {
@@ -38,7 +38,7 @@
       "name": "펌텍코리아",
       "market": "KOSDAQ GLOBAL",
       "return_pct": 28.77,
-      "marcap_eok": 5716,
+      "marcap_eok": 5630,
       "report_count": 3
     },
     {
@@ -47,7 +47,7 @@
       "name": "LG생활건강",
       "market": "KOSPI",
       "return_pct": 25.05,
-      "marcap_eok": 42980,
+      "marcap_eok": 42456,
       "report_count": 10
     },
     {
@@ -56,7 +56,7 @@
       "name": "CJ CGV",
       "market": "KOSPI",
       "return_pct": 24.23,
-      "marcap_eok": 8958,
+      "marcap_eok": 8246,
       "report_count": 2
     },
     {
@@ -65,7 +65,7 @@
       "name": "영원무역",
       "market": "KOSPI",
       "return_pct": 23.14,
-      "marcap_eok": 39614,
+      "marcap_eok": 38950,
       "report_count": 7
     },
     {
@@ -74,8 +74,8 @@
       "name": "아모레퍼시픽",
       "market": "KOSPI",
       "return_pct": 22.99,
-      "marcap_eok": 76041,
-      "report_count": 11
+      "marcap_eok": 75924,
+      "report_count": 13
     },
     {
       "rank": 8,
@@ -83,7 +83,7 @@
       "name": "뉴파워프라즈마",
       "market": "KOSDAQ",
       "return_pct": 22.82,
-      "marcap_eok": 4374,
+      "marcap_eok": 4216,
       "report_count": 3
     },
     {
@@ -92,7 +92,7 @@
       "name": "S-Oil",
       "market": "KOSPI",
       "return_pct": 19.64,
-      "marcap_eok": 143318,
+      "marcap_eok": 137013,
       "report_count": 10
     },
     {
@@ -101,7 +101,7 @@
       "name": "코스맥스",
       "market": "KOSPI",
       "return_pct": 19.24,
-      "marcap_eok": 20963,
+      "marcap_eok": 21053,
       "report_count": 14
     },
     {
@@ -110,7 +110,7 @@
       "name": "한샘",
       "market": "KOSPI",
       "return_pct": 18.6,
-      "marcap_eok": 9155,
+      "marcap_eok": 8896,
       "report_count": 2
     },
     {
@@ -119,7 +119,7 @@
       "name": "메리츠금융지주",
       "market": "KOSPI",
       "return_pct": 17.42,
-      "marcap_eok": 207511,
+      "marcap_eok": 201319,
       "report_count": 3
     },
     {
@@ -128,7 +128,7 @@
       "name": "DB손해보험",
       "market": "KOSPI",
       "return_pct": 17.25,
-      "marcap_eok": 102836,
+      "marcap_eok": 102574,
       "report_count": 7
     },
     {
@@ -137,7 +137,7 @@
       "name": "SK이노베이션",
       "market": "KOSPI",
       "return_pct": 16.44,
-      "marcap_eok": 186803,
+      "marcap_eok": 182577,
       "report_count": 12
     },
     {
@@ -146,7 +146,7 @@
       "name": "우리금융지주",
       "market": "KOSPI",
       "return_pct": 15.86,
-      "marcap_eok": 244638,
+      "marcap_eok": 242818,
       "report_count": 10
     },
     {
@@ -155,8 +155,8 @@
       "name": "팬오션",
       "market": "KOSPI",
       "return_pct": 15.52,
-      "marcap_eok": 29241,
-      "report_count": 7
+      "marcap_eok": 26381,
+      "report_count": 12
     },
     {
       "rank": 17,
@@ -164,7 +164,7 @@
       "name": "코스메카코리아",
       "market": "KOSDAQ GLOBAL",
       "return_pct": 14.2,
-      "marcap_eok": 8416,
+      "marcap_eok": 8480,
       "report_count": 7
     },
     {
@@ -173,7 +173,7 @@
       "name": "농심",
       "market": "KOSPI",
       "return_pct": 14.16,
-      "marcap_eok": 23297,
+      "marcap_eok": 22810,
       "report_count": 8
     },
     {
@@ -182,304 +182,322 @@
       "name": "컴투스",
       "market": "KOSDAQ GLOBAL",
       "return_pct": 13.63,
-      "marcap_eok": 3579,
+      "marcap_eok": 3609,
       "report_count": 2
     },
     {
       "rank": 20,
+      "ticker": "298020",
+      "name": "효성티앤씨",
+      "market": "KOSPI",
+      "return_pct": 13.24,
+      "marcap_eok": 13589,
+      "report_count": 4
+    },
+    {
+      "rank": 21,
       "ticker": "011760",
       "name": "현대코퍼레이션",
       "market": "KOSPI",
       "return_pct": 12.78,
-      "marcap_eok": 3387,
+      "marcap_eok": 3354,
       "report_count": 2
     },
     {
-      "rank": 21,
+      "rank": 22,
       "ticker": "105630",
       "name": "한세실업",
       "market": "KOSPI",
       "return_pct": 12.59,
-      "marcap_eok": 3648,
+      "marcap_eok": 3600,
       "report_count": 6
     },
     {
-      "rank": 22,
+      "rank": 23,
       "ticker": "011200",
       "name": "HMM",
       "market": "KOSPI",
       "return_pct": 12.57,
-      "marcap_eok": 197608,
+      "marcap_eok": 195722,
       "report_count": 7
     },
     {
-      "rank": 23,
+      "rank": 24,
+      "ticker": "441270",
+      "name": "파인엠텍",
+      "market": "KOSDAQ",
+      "return_pct": 12.24,
+      "marcap_eok": 3057,
+      "report_count": 2
+    },
+    {
+      "rank": 25,
       "ticker": "103140",
       "name": "풍산",
       "market": "KOSPI",
       "return_pct": 10.56,
-      "marcap_eok": 19953,
-      "report_count": 6
+      "marcap_eok": 19028,
+      "report_count": 10
     },
     {
-      "rank": 24,
+      "rank": 26,
       "ticker": "294870",
       "name": "IPARK현대산업개발",
       "market": "KOSPI",
       "return_pct": 10.52,
-      "marcap_eok": 13083,
+      "marcap_eok": 13214,
       "report_count": 12
     },
     {
-      "rank": 25,
+      "rank": 27,
       "ticker": "001450",
       "name": "현대해상",
       "market": "KOSPI",
       "return_pct": 10.33,
-      "marcap_eok": 32778,
+      "marcap_eok": 31798,
       "report_count": 7
     },
     {
-      "rank": 26,
+      "rank": 28,
       "ticker": "009540",
       "name": "HD한국조선해양",
       "market": "KOSPI",
       "return_pct": 9.86,
-      "marcap_eok": 272123,
+      "marcap_eok": 260799,
       "report_count": 4
     },
     {
-      "rank": 27,
+      "rank": 29,
       "ticker": "086790",
       "name": "하나금융지주",
       "market": "KOSPI",
       "return_pct": 9.42,
-      "marcap_eok": 344057,
+      "marcap_eok": 348173,
       "report_count": 12
     },
     {
-      "rank": 28,
+      "rank": 30,
       "ticker": "194370",
       "name": "제이에스코퍼레이션",
       "market": "KOSPI",
       "return_pct": 9.26,
-      "marcap_eok": 3526,
+      "marcap_eok": 3839,
       "report_count": 2
     },
     {
-      "rank": 29,
+      "rank": 31,
       "ticker": "086280",
       "name": "현대글로비스",
       "market": "KOSPI",
       "return_pct": 9.23,
-      "marcap_eok": 150000,
+      "marcap_eok": 149925,
       "report_count": 7
     },
     {
-      "rank": 30,
+      "rank": 32,
       "ticker": "161390",
       "name": "한국타이어앤테크놀로지",
       "market": "KOSPI",
       "return_pct": 9.21,
-      "marcap_eok": 83740,
+      "marcap_eok": 82749,
       "report_count": 7
     },
     {
-      "rank": 31,
+      "rank": 33,
       "ticker": "453340",
       "name": "현대그린푸드",
       "market": "KOSPI",
       "return_pct": 9.18,
-      "marcap_eok": 5871,
+      "marcap_eok": 5790,
       "report_count": 2
     },
     {
-      "rank": 32,
+      "rank": 34,
       "ticker": "007690",
       "name": "국도화학",
       "market": "KOSPI",
       "return_pct": 9.14,
-      "marcap_eok": 3538,
-      "report_count": 2
-    },
-    {
-      "rank": 33,
-      "ticker": "081660",
-      "name": "미스토홀딩스",
-      "market": "KOSPI",
-      "return_pct": 8.93,
-      "marcap_eok": 23971,
-      "report_count": 8
-    },
-    {
-      "rank": 34,
-      "ticker": "000640",
-      "name": "동아쏘시오홀딩스",
-      "market": "KOSPI",
-      "return_pct": 8.75,
-      "marcap_eok": 5938,
+      "marcap_eok": 3575,
       "report_count": 2
     },
     {
       "rank": 35,
+      "ticker": "081660",
+      "name": "미스토홀딩스",
+      "market": "KOSPI",
+      "return_pct": 8.93,
+      "marcap_eok": 23360,
+      "report_count": 8
+    },
+    {
+      "rank": 36,
+      "ticker": "000640",
+      "name": "동아쏘시오홀딩스",
+      "market": "KOSPI",
+      "return_pct": 8.75,
+      "marcap_eok": 5797,
+      "report_count": 3
+    },
+    {
+      "rank": 37,
       "ticker": "035720",
       "name": "카카오",
       "market": "KOSPI",
       "return_pct": 8.25,
-      "marcap_eok": 165675,
+      "marcap_eok": 164789,
       "report_count": 10
     },
     {
-      "rank": 36,
+      "rank": 38,
       "ticker": "280360",
       "name": "롯데웰푸드",
       "market": "KOSPI",
       "return_pct": 8.08,
-      "marcap_eok": 9481,
+      "marcap_eok": 9287,
       "report_count": 8
     },
     {
-      "rank": 37,
+      "rank": 39,
       "ticker": "018260",
       "name": "삼성에스디에스",
       "market": "KOSPI",
       "return_pct": 7.97,
-      "marcap_eok": 159398,
+      "marcap_eok": 157077,
       "report_count": 8
     },
     {
-      "rank": 38,
+      "rank": 40,
       "ticker": "282330",
       "name": "BGF리테일",
       "market": "KOSPI",
       "return_pct": 7.94,
-      "marcap_eok": 21605,
+      "marcap_eok": 21086,
       "report_count": 13
     },
     {
-      "rank": 39,
+      "rank": 41,
       "ticker": "036460",
       "name": "한국가스공사",
       "market": "KOSPI",
       "return_pct": 7.82,
-      "marcap_eok": 31802,
+      "marcap_eok": 31663,
       "report_count": 3
     },
     {
-      "rank": 40,
+      "rank": 42,
       "ticker": "068270",
       "name": "셀트리온",
       "market": "KOSPI",
       "return_pct": 7.73,
-      "marcap_eok": 434178,
-      "report_count": 15
+      "marcap_eok": 423713,
+      "report_count": 16
     },
     {
-      "rank": 41,
+      "rank": 43,
       "ticker": "257720",
       "name": "실리콘투",
       "market": "KOSDAQ",
       "return_pct": 7.27,
-      "marcap_eok": 22263,
+      "marcap_eok": 22624,
       "report_count": 5
     },
     {
-      "rank": 42,
+      "rank": 44,
       "ticker": "018670",
       "name": "SK가스",
       "market": "KOSPI",
       "return_pct": 6.94,
-      "marcap_eok": 20690,
+      "marcap_eok": 18329,
       "report_count": 3
     },
     {
-      "rank": 43,
+      "rank": 45,
       "ticker": "207940",
       "name": "삼성바이오로직스",
       "market": "KOSPI",
       "return_pct": 6.76,
-      "marcap_eok": 687421,
+      "marcap_eok": 658720,
       "report_count": 15
     },
     {
-      "rank": 44,
+      "rank": 46,
       "ticker": "175330",
       "name": "JB금융지주",
       "market": "KOSPI",
       "return_pct": 6.65,
-      "marcap_eok": 49335,
+      "marcap_eok": 50547,
       "report_count": 6
     },
     {
-      "rank": 45,
+      "rank": 47,
       "ticker": "047050",
       "name": "포스코인터내셔널",
       "market": "KOSPI",
       "return_pct": 6.21,
-      "marcap_eok": 91832,
+      "marcap_eok": 90248,
       "report_count": 13
     },
     {
-      "rank": 46,
+      "rank": 48,
       "ticker": "105560",
       "name": "KB금융",
       "market": "KOSPI",
       "return_pct": 5.97,
-      "marcap_eok": 597649,
+      "marcap_eok": 601196,
       "report_count": 12
     },
     {
-      "rank": 47,
+      "rank": 49,
       "ticker": "323410",
       "name": "카카오뱅크",
       "market": "KOSPI",
       "return_pct": 5.74,
-      "marcap_eok": 105444,
+      "marcap_eok": 104251,
       "report_count": 6
     },
     {
-      "rank": 48,
+      "rank": 50,
       "ticker": "214320",
       "name": "이노션",
       "market": "KOSPI",
       "return_pct": 5.72,
-      "marcap_eok": 7612,
+      "marcap_eok": 7556,
       "report_count": 4
     },
     {
-      "rank": 49,
+      "rank": 51,
       "ticker": "007340",
       "name": "DN오토모티브",
       "market": "KOSPI",
       "return_pct": 5.63,
-      "marcap_eok": 23609,
+      "marcap_eok": 23931,
       "report_count": 2
     },
     {
-      "rank": 50,
+      "rank": 52,
       "ticker": "032640",
       "name": "LG유플러스",
       "market": "KOSPI",
       "return_pct": 5.57,
-      "marcap_eok": 62730,
+      "marcap_eok": 62985,
       "report_count": 20
     },
     {
-      "rank": 51,
+      "rank": 53,
       "ticker": "033780",
       "name": "KT&G",
       "market": "KOSPI",
       "return_pct": 5.54,
-      "marcap_eok": 185925,
+      "marcap_eok": 182291,
       "report_count": 11
     },
     {
-      "rank": 52,
+      "rank": 54,
       "ticker": "181710",
       "name": "NHN",
       "market": "KOSPI",
       "return_pct": 5.4,
-      "marcap_eok": 12151,
+      "marcap_eok": 12168,
       "report_count": 5
     }
   ]
