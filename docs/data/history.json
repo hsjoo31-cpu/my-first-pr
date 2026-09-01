@@ -1,5 +1,421 @@
 [
   {
+    "target_month": "2026-08",
+    "updated_at": "2026-09-01T22:57:08.482884+09:00",
+    "period": {
+      "start": "2026-07-31",
+      "end": "2026-08-31"
+    },
+    "passed_count": 45,
+    "stocks": [
+      {
+        "rank": 1,
+        "ticker": "181710",
+        "name": "NHN",
+        "market": "KOSPI",
+        "return_pct": 100.27,
+        "marcap_eok": 23058,
+        "report_count": 6
+      },
+      {
+        "rank": 2,
+        "ticker": "066970",
+        "name": "엘앤에프",
+        "market": "KOSPI",
+        "return_pct": 100.14,
+        "marcap_eok": 53378,
+        "report_count": 4
+      },
+      {
+        "rank": 3,
+        "ticker": "241710",
+        "name": "코스메카코리아",
+        "market": "KOSDAQ GLOBAL",
+        "return_pct": 90.1,
+        "marcap_eok": 15080,
+        "report_count": 7
+      },
+      {
+        "rank": 4,
+        "ticker": "336260",
+        "name": "두산퓨얼셀",
+        "market": "KOSPI",
+        "return_pct": 83.91,
+        "marcap_eok": 29046,
+        "report_count": 4
+      },
+      {
+        "rank": 5,
+        "ticker": "092870",
+        "name": "엑시콘",
+        "market": "KOSDAQ",
+        "return_pct": 83.35,
+        "marcap_eok": 3628,
+        "report_count": 2
+      },
+      {
+        "rank": 6,
+        "ticker": "317400",
+        "name": "자이에스앤디",
+        "market": "KOSPI",
+        "return_pct": 80.78,
+        "marcap_eok": 4200,
+        "report_count": 2
+      },
+      {
+        "rank": 7,
+        "ticker": "161890",
+        "name": "한국콜마",
+        "market": "KOSPI",
+        "return_pct": 68.17,
+        "marcap_eok": 36588,
+        "report_count": 15
+      },
+      {
+        "rank": 8,
+        "ticker": "327260",
+        "name": "RF머트리얼즈",
+        "market": "KOSDAQ",
+        "return_pct": 64.43,
+        "marcap_eok": 6287,
+        "report_count": 2
+      },
+      {
+        "rank": 9,
+        "ticker": "192820",
+        "name": "코스맥스",
+        "market": "KOSPI",
+        "return_pct": 62.43,
+        "marcap_eok": 32573,
+        "report_count": 14
+      },
+      {
+        "rank": 10,
+        "ticker": "257720",
+        "name": "실리콘투",
+        "market": "KOSDAQ",
+        "return_pct": 59.65,
+        "marcap_eok": 34034,
+        "report_count": 8
+      },
+      {
+        "rank": 11,
+        "ticker": "356860",
+        "name": "티엘비",
+        "market": "KOSDAQ",
+        "return_pct": 59.09,
+        "marcap_eok": 9765,
+        "report_count": 8
+      },
+      {
+        "rank": 12,
+        "ticker": "000500",
+        "name": "가온전선",
+        "market": "KOSPI",
+        "return_pct": 56.48,
+        "marcap_eok": 62086,
+        "report_count": 2
+      },
+      {
+        "rank": 13,
+        "ticker": "222800",
+        "name": "심텍",
+        "market": "KOSDAQ GLOBAL",
+        "return_pct": 55.97,
+        "marcap_eok": 47696,
+        "report_count": 13
+      },
+      {
+        "rank": 14,
+        "ticker": "083650",
+        "name": "비에이치아이",
+        "market": "KOSDAQ",
+        "return_pct": 55.83,
+        "marcap_eok": 18938,
+        "report_count": 4
+      },
+      {
+        "rank": 15,
+        "ticker": "006360",
+        "name": "GS건설",
+        "market": "KOSPI",
+        "return_pct": 54.8,
+        "marcap_eok": 28499,
+        "report_count": 22
+      },
+      {
+        "rank": 16,
+        "ticker": "417840",
+        "name": "저스템",
+        "market": "KOSDAQ",
+        "return_pct": 53.76,
+        "marcap_eok": 3227,
+        "report_count": 3
+      },
+      {
+        "rank": 17,
+        "ticker": "007660",
+        "name": "이수페타시스",
+        "market": "KOSPI",
+        "return_pct": 53.02,
+        "marcap_eok": 81558,
+        "report_count": 5
+      },
+      {
+        "rank": 18,
+        "ticker": "000370",
+        "name": "한화손해보험",
+        "market": "KOSPI",
+        "return_pct": 48.59,
+        "marcap_eok": 10378,
+        "report_count": 5
+      },
+      {
+        "rank": 19,
+        "ticker": "128940",
+        "name": "한미약품",
+        "market": "KOSPI",
+        "return_pct": 47.68,
+        "marcap_eok": 63030,
+        "report_count": 23
+      },
+      {
+        "rank": 20,
+        "ticker": "125490",
+        "name": "한라캐스트",
+        "market": "KOSDAQ",
+        "return_pct": 46.5,
+        "marcap_eok": 4019,
+        "report_count": 2
+      },
+      {
+        "rank": 21,
+        "ticker": "010060",
+        "name": "OCI홀딩스",
+        "market": "KOSPI",
+        "return_pct": 45.82,
+        "marcap_eok": 49196,
+        "report_count": 9
+      },
+      {
+        "rank": 22,
+        "ticker": "475830",
+        "name": "오름테라퓨틱",
+        "market": "KOSDAQ",
+        "return_pct": 45.74,
+        "marcap_eok": 12858,
+        "report_count": 2
+      },
+      {
+        "rank": 23,
+        "ticker": "003670",
+        "name": "포스코퓨처엠",
+        "market": "KOSPI",
+        "return_pct": 45.61,
+        "marcap_eok": 170154,
+        "report_count": 8
+      },
+      {
+        "rank": 24,
+        "ticker": "006400",
+        "name": "삼성SDI",
+        "market": "KOSPI",
+        "return_pct": 45.34,
+        "marcap_eok": 458532,
+        "report_count": 13
+      },
+      {
+        "rank": 25,
+        "ticker": "278470",
+        "name": "에이피알",
+        "market": "KOSPI",
+        "return_pct": 45.16,
+        "marcap_eok": 161920,
+        "report_count": 14
+      },
+      {
+        "rank": 26,
+        "ticker": "047040",
+        "name": "대우건설",
+        "market": "KOSPI",
+        "return_pct": 42.33,
+        "marcap_eok": 69115,
+        "report_count": 14
+      },
+      {
+        "rank": 27,
+        "ticker": "280360",
+        "name": "롯데웰푸드",
+        "market": "KOSPI",
+        "return_pct": 41.46,
+        "marcap_eok": 13319,
+        "report_count": 10
+      },
+      {
+        "rank": 28,
+        "ticker": "108490",
+        "name": "로보티즈",
+        "market": "KOSDAQ",
+        "return_pct": 40.1,
+        "marcap_eok": 37254,
+        "report_count": 2
+      },
+      {
+        "rank": 29,
+        "ticker": "020150",
+        "name": "롯데에너지머티리얼즈",
+        "market": "KOSPI",
+        "return_pct": 38.21,
+        "marcap_eok": 20868,
+        "report_count": 6
+      },
+      {
+        "rank": 30,
+        "ticker": "122640",
+        "name": "예스티",
+        "market": "KOSDAQ",
+        "return_pct": 37.67,
+        "marcap_eok": 6214,
+        "report_count": 2
+      },
+      {
+        "rank": 31,
+        "ticker": "192650",
+        "name": "드림텍",
+        "market": "KOSPI",
+        "return_pct": 37.54,
+        "marcap_eok": 3874,
+        "report_count": 2
+      },
+      {
+        "rank": 32,
+        "ticker": "365340",
+        "name": "성일하이텍",
+        "market": "KOSDAQ",
+        "return_pct": 37.43,
+        "marcap_eok": 4800,
+        "report_count": 2
+      },
+      {
+        "rank": 33,
+        "ticker": "234340",
+        "name": "헥토파이낸셜",
+        "market": "KOSDAQ",
+        "return_pct": 37.33,
+        "marcap_eok": 3311,
+        "report_count": 3
+      },
+      {
+        "rank": 34,
+        "ticker": "062040",
+        "name": "산일전기",
+        "market": "KOSPI",
+        "return_pct": 36.94,
+        "marcap_eok": 59937,
+        "report_count": 10
+      },
+      {
+        "rank": 35,
+        "ticker": "103590",
+        "name": "일진전기",
+        "market": "KOSPI",
+        "return_pct": 36.92,
+        "marcap_eok": 33904,
+        "report_count": 6
+      },
+      {
+        "rank": 36,
+        "ticker": "039030",
+        "name": "이오테크닉스",
+        "market": "KOSDAQ",
+        "return_pct": 36.49,
+        "marcap_eok": 48539,
+        "report_count": 3
+      },
+      {
+        "rank": 37,
+        "ticker": "005090",
+        "name": "SGC에너지",
+        "market": "KOSPI",
+        "return_pct": 36.2,
+        "marcap_eok": 7493,
+        "report_count": 4
+      },
+      {
+        "rank": 38,
+        "ticker": "357780",
+        "name": "솔브레인",
+        "market": "KOSDAQ GLOBAL",
+        "return_pct": 35.64,
+        "marcap_eok": 26447,
+        "report_count": 4
+      },
+      {
+        "rank": 39,
+        "ticker": "278280",
+        "name": "천보",
+        "market": "KOSDAQ",
+        "return_pct": 35.31,
+        "marcap_eok": 5054,
+        "report_count": 2
+      },
+      {
+        "rank": 40,
+        "ticker": "000880",
+        "name": "한화",
+        "market": "KOSPI",
+        "return_pct": 34.69,
+        "marcap_eok": 68421,
+        "report_count": 8
+      },
+      {
+        "rank": 41,
+        "ticker": "005180",
+        "name": "빙그레",
+        "market": "KOSPI",
+        "return_pct": 33.83,
+        "marcap_eok": 8481,
+        "report_count": 2
+      },
+      {
+        "rank": 42,
+        "ticker": "066570",
+        "name": "LG전자",
+        "market": "KOSPI",
+        "return_pct": 33.56,
+        "marcap_eok": 336357,
+        "report_count": 15
+      },
+      {
+        "rank": 43,
+        "ticker": "009830",
+        "name": "한화솔루션",
+        "market": "KOSPI",
+        "return_pct": 32.75,
+        "marcap_eok": 74439,
+        "report_count": 9
+      },
+      {
+        "rank": 44,
+        "ticker": "004490",
+        "name": "세방전지",
+        "market": "KOSPI",
+        "return_pct": 32.43,
+        "marcap_eok": 9300,
+        "report_count": 2
+      },
+      {
+        "rank": 45,
+        "ticker": "001450",
+        "name": "현대해상",
+        "market": "KOSPI",
+        "return_pct": 32.38,
+        "marcap_eok": 45523,
+        "report_count": 9
+      }
+    ]
+  },
+  {
     "target_month": "2026-07",
     "updated_at": "2026-08-03T21:22:32.709604+09:00",
     "period": {
@@ -494,7 +910,20 @@
         "marcap_eok": 12168,
         "report_count": 5
       }
-    ]
+    ],
+    "forward_returns": {
+      "next_month": "2026-08",
+      "next_period": {
+        "start": "2026-07-31",
+        "end": "2026-08-31"
+      },
+      "top5_avg_pct": 11.78,
+      "top10_avg_pct": 12.67,
+      "top20_avg_pct": 14.86,
+      "top5_n": 5,
+      "top10_n": 10,
+      "top20_n": 20
+    }
   },
   {
     "target_month": "2026-05",
