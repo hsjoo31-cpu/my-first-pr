@@ -1,7 +1,7 @@
 {
- "updated_at": "2026-11-03 17:42 KST",
- "data_last_date": "2026-10-30",
- "complete_week": "2026-10-30",
+ "updated_at": "2026-11-10 08:14 KST",
+ "data_last_date": "2026-11-06",
+ "complete_week": "2026-11-06",
  "params": {
   "amt_rank": 10,
   "cap_lo": 30,
@@ -11,8 +11,42 @@
   "tp_pct": 90,
   "hold_months": 3
  },
- "new_signals": [],
- "holdings": [],
+ "new_signals": [
+  {
+   "code": "180640",
+   "name": "한진칼",
+   "entry_date": "2026-11-06",
+   "entry_price": 196100.0,
+   "current_price": 196100.0,
+   "current_ret": 0.0,
+   "stop_price": 137270,
+   "target1_price": 284345,
+   "target2_price": 372590,
+   "partial_done": false,
+   "partial_date": null,
+   "expiry_date": "2027-02-06",
+   "days_left": 92,
+   "is_new": true
+  }
+ ],
+ "holdings": [
+  {
+   "code": "180640",
+   "name": "한진칼",
+   "entry_date": "2026-11-06",
+   "entry_price": 196100.0,
+   "current_price": 196100.0,
+   "current_ret": 0.0,
+   "stop_price": 137270,
+   "target1_price": 284345,
+   "target2_price": 372590,
+   "partial_done": false,
+   "partial_date": null,
+   "expiry_date": "2027-02-06",
+   "days_left": 92,
+   "is_new": true
+  }
+ ],
  "closed": [
   {
    "code": "079550",
@@ -307,7 +341,7 @@
  ],
  "summary": {
   "n_closed": 29,
-  "n_open": 0,
+  "n_open": 1,
   "wins": 24,
   "win_rate": 82.8,
   "avg_ret": 27.06,
