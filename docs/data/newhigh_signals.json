@@ -1,7 +1,7 @@
 {
- "updated_at": "2026-11-17 18:47 KST",
- "data_last_date": "2026-11-13",
- "complete_week": "2026-11-13",
+ "updated_at": "2026-11-24 10:26 KST",
+ "data_last_date": "2026-11-20",
+ "complete_week": "2026-11-20",
  "params": {
   "amt_rank": 10,
   "cap_lo": 30,
@@ -11,55 +11,37 @@
   "tp_pct": 90,
   "hold_months": 3
  },
- "new_signals": [
-  {
-   "code": "028050",
-   "name": "삼성E&A",
-   "entry_date": "2026-11-13",
-   "entry_price": 68800.0,
-   "current_price": 68800.0,
-   "current_ret": 0.0,
-   "stop_price": 48160,
-   "target1_price": 99760,
-   "target2_price": 130720,
-   "partial_done": false,
-   "partial_date": null,
-   "expiry_date": "2027-02-13",
-   "days_left": 92,
-   "is_new": true
-  }
- ],
+ "new_signals": [],
  "holdings": [
   {
    "code": "028050",
    "name": "삼성E&A",
    "entry_date": "2026-11-13",
    "entry_price": 68800.0,
-   "current_price": 68800.0,
-   "current_ret": 0.0,
+   "current_price": 60300.0,
+   "current_ret": -12.35,
    "stop_price": 48160,
    "target1_price": 99760,
    "target2_price": 130720,
    "partial_done": false,
    "partial_date": null,
    "expiry_date": "2027-02-13",
-   "days_left": 92,
-   "is_new": true
+   "days_left": 85
   },
   {
    "code": "180640",
    "name": "한진칼",
    "entry_date": "2026-11-06",
    "entry_price": 196100.0,
-   "current_price": 203500.0,
-   "current_ret": 3.77,
+   "current_price": 236000.0,
+   "current_ret": 20.35,
    "stop_price": 137270,
    "target1_price": 284345,
    "target2_price": 372590,
    "partial_done": false,
    "partial_date": null,
    "expiry_date": "2027-02-06",
-   "days_left": 85
+   "days_left": 78
   }
  ],
  "closed": [
